@@ -1,0 +1,11 @@
+bibentry(bibtype = "Article",
+         style   = "citation",
+         header  = "To cite the dowser package in publications, please use:",
+         title   = "Phylogenetic analysis of migration, differentiation, and class switching in B cells.",
+         author  = c(person("Kenneth B.", "Hoehn"),
+                     person("Oliver G.", "Pybus"),
+                     person("Steven H.", "Kleinstein")),
+         year    = 2020,
+         journal = "bioRxiv",
+         url = "https://doi.org/10.1101/2020.05.30.124446",
+         doi = "10.1101/2020.05.30.124446")

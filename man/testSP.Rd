@@ -12,13 +12,13 @@ testSP(
   dropzeros = TRUE,
   bylineage = FALSE,
   pseudocount = 0,
-  alternative = c("two.sided", "greater", "less"),
+  alternative = c("greater", "two.sided", "less"),
   tip_switch = 20,
   exclude = FALSE
 )
 }
 \arguments{
-\item{switches}{Data frame from bootstrapTrees}
+\item{switches}{Data frame from findSwitches}
 
 \item{permuteAll}{Permute among trees?}
 
@@ -72,12 +72,12 @@ igphyml <- "~/apps/igphyml/src/igphyml"
 data(ExampleAirr)
 ExampleAirr$sample_id = sample(ExampleAirr$sample_id)
 clones = formatClones(ExampleAirr, trait="sample_id")
-btrees = bootstrapTrees(clones[1:2], bootstraps=10, nproc=1,
+btrees = findSwitches(clones[1:2], bootstraps=10, nproc=1,
    igphyml=igphyml, trait="sample_id")
 testSP(btrees$switches)
 }
 }
 \seealso{
-Uses output from \link{bootstrapTrees}. Related to \link{testPS}
+Uses output from \link{findSwitches}. Related to \link{testPS}
 and \link{testSC}.
 }

@@ -11,7 +11,7 @@ plots = plotTrees(trees, tips="c_call", tipsize=2, node_nums=TRUE, labelsize=7)
 
 plots[[1]]
 
-sequence = getSeq(trees, node=50, clone=3128)
+sequence = getNodeSeq(trees, node=50, clone=3128)
 
 print(sequence)
 

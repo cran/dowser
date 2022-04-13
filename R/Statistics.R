@@ -3,7 +3,7 @@
 #' Performs PS (parsimony score) test on switch data
 #' 
 #' \code{testPS} performs a PS test
-#' @param    switches     Data frame from bootstrapTrees
+#' @param    switches     Data frame from findSwitches
 #' @param    bylineage    Perform test for each lineage individually? (FALSE)
 #' @param    pseudocount  Pseudocount for P value calculations
 #' @param    alternative  Perform one-sided (\code{greater} or \code{less})
@@ -29,7 +29,7 @@
 #'   \item  \code{REPS}: Total number of ootstrap repetition.
 #'}
 #'  
-#' @seealso Uses output from \link{bootstrapTrees}. Related to \link{testSP}
+#' @seealso Uses output from \link{findSwitches}. Related to \link{testSP}
 #' and \link{testSC}.
 #' @examples
 #' \dontrun{
@@ -37,7 +37,7 @@
 #' data(ExampleAirr)
 #' ExampleAirr$sample_id <- sample(ExampleAirr$sample_id)
 #' clones <- formatClones(ExampleAirr, trait="sample_id")
-#' btrees <- bootstrapTrees(clones[1:2], bootstraps=10, nproc=1,
+#' btrees <- findSwitches(clones[1:2], bootstraps=10, nproc=1,
 #'    igphyml=igphyml, trait="sample_id")
 #' testPS(btrees$switches)
 #' }
@@ -146,7 +146,7 @@ testPS <- function(switches, bylineage=FALSE, pseudocount=0,
 #' Performs SP (switch proportion) test on switch data
 #' 
 #' \code{testSP} performs an SP test
-#' @param    switches     Data frame from bootstrapTrees
+#' @param    switches     Data frame from findSwitches
 #' @param    permuteAll   Permute among trees?
 #' @param    from         Include only switches from this state?
 #' @param    to           Include only switches to this state?
@@ -180,7 +180,7 @@ testPS <- function(switches, bylineage=FALSE, pseudocount=0,
 #'   \item  \code{REPS}: Total number of ootstrap repetition.
 #'}
 #'  
-#' @seealso Uses output from \link{bootstrapTrees}. Related to \link{testPS}
+#' @seealso Uses output from \link{findSwitches}. Related to \link{testPS}
 #' and \link{testSC}.
 #' @examples
 #' \dontrun{
@@ -188,14 +188,14 @@ testPS <- function(switches, bylineage=FALSE, pseudocount=0,
 #' data(ExampleAirr)
 #' ExampleAirr$sample_id = sample(ExampleAirr$sample_id)
 #' clones = formatClones(ExampleAirr, trait="sample_id")
-#' btrees = bootstrapTrees(clones[1:2], bootstraps=10, nproc=1,
+#' btrees = findSwitches(clones[1:2], bootstraps=10, nproc=1,
 #'    igphyml=igphyml, trait="sample_id")
 #' testSP(btrees$switches)
 #' }
 #' @export
 testSP <- function(switches, permuteAll=FALSE, 
     from=NULL, to=NULL, dropzeros=TRUE,
-    bylineage=FALSE, pseudocount=0, alternative=c("two.sided","greater","less"),
+    bylineage=FALSE, pseudocount=0, alternative=c("greater","two.sided","less"),
     tip_switch=20, exclude=FALSE){
 
     permute <- dplyr::quo(!!rlang::sym("PERMUTE"))
@@ -205,6 +205,9 @@ testSP <- function(switches, permuteAll=FALSE,
 
     tips <- dplyr::filter(switches, !!rlang::sym("TO")=="NTIP" &
         !!rlang::sym("TYPE")=="RECON")
+
+    # germline doesn't count in downsampling algorithm
+    tips$SWITCHES <- tips$SWITCHES - 1
 
     switches <- switches %>% 
         dplyr::filter(!!rlang::sym("TO") != !!rlang::sym("FROM") & 
@@ -219,13 +222,10 @@ testSP <- function(switches, permuteAll=FALSE,
         switches <- dplyr::filter(switches, !!rlang::sym("TO") == !!to)
     }
 
-    counts <- testSC(switches,bylineage=TRUE)$means %>%
-        dplyr::group_by(!!rlang::sym("CLONE")) %>%
-        dplyr::summarize(switches=sum(!!rlang::sym("RECON"))) %>%
-        dplyr::filter(!!rlang::sym("switches") > 0)
+    counts <- testPS(switches, bylineage=TRUE)$means
     m <- match(counts$CLONE, tips$CLONE)
     counts$tips <- tips[m,]$SWITCHES
-    counts$ratio <- counts$tips/counts$switches
+    counts$ratio <- counts$tips/counts$RECON
 
     excluded <- dplyr::filter(counts, !!rlang::sym("ratio") > tip_switch)$CLONE
     if(length(excluded) > 0 & exclude){
@@ -284,7 +284,7 @@ testSP <- function(switches, permuteAll=FALSE,
                 dplyr::group_by(!!rlang::sym("FROM"), !!rlang::sym("TO")) %>%
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0)*0.5 + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -297,7 +297,7 @@ testSP <- function(switches, permuteAll=FALSE,
                 dplyr::group_by(!!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PGT = (sum(!!rlang::sym("DELTA") < 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),    
@@ -307,7 +307,7 @@ testSP <- function(switches, permuteAll=FALSE,
                 dplyr::group_by(!!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -320,7 +320,7 @@ testSP <- function(switches, permuteAll=FALSE,
                     !!rlang::sym("FROM"), !!rlang::sym("TO")) %>%
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0)*0.5 + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -334,7 +334,7 @@ testSP <- function(switches, permuteAll=FALSE,
                     !!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PGT = (sum(!!rlang::sym("DELTA") < 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),    
@@ -345,7 +345,7 @@ testSP <- function(switches, permuteAll=FALSE,
                     !!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -365,7 +365,7 @@ testSP <- function(switches, permuteAll=FALSE,
 #' Performs SC (switch count) test on switch data
 #' 
 #' \code{testSC} performs an SC test
-#' @param    switches     Data frame from bootstrapTrees
+#' @param    switches     Data frame from findSwitches
 #' @param    permuteAll   Permute among trees?
 #' @param    from         Include only switches from this state?
 #' @param    to           Include only switches to this state?
@@ -397,7 +397,7 @@ testSP <- function(switches, permuteAll=FALSE,
 #'   \item  \code{REPS}: Total number of ootstrap repetition.
 #'}
 #'  
-#' @seealso Uses output from \link{bootstrapTrees}. Related to \link{testPS}
+#' @seealso Uses output from \link{findSwitches}. Related to \link{testPS}
 #' and \link{testSP}.
 #' @examples
 #' \dontrun{
@@ -405,7 +405,7 @@ testSP <- function(switches, permuteAll=FALSE,
 #' data(ExampleAirr)
 #' ExampleAirr$sample_id = sample(ExampleAirr$sample_id)
 #' clones = formatClones(ExampleAirr, trait="sample_id")
-#' btrees = bootstrapTrees(clones[1:2], bootstraps=100, nproc=1,
+#' btrees = findSwitches(clones[1:2], bootstraps=100, nproc=1,
 #'    igphyml=igphyml, trait="sample_id", id="temp", dir="temp")
 #' testSC(btrees$switches)
 #' }
@@ -480,7 +480,7 @@ testSC <- function(switches,dropzeros=TRUE,
                 dplyr::group_by(!!rlang::sym("FROM"), !!rlang::sym("TO")) %>%
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0)*0.5 + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -493,7 +493,7 @@ testSC <- function(switches,dropzeros=TRUE,
                 dplyr::group_by(!!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PGT = (sum(!!rlang::sym("DELTA") < 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),    
@@ -503,7 +503,7 @@ testSC <- function(switches,dropzeros=TRUE,
                 dplyr::group_by(!!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -516,7 +516,7 @@ testSC <- function(switches,dropzeros=TRUE,
                     !!rlang::sym("FROM"), !!rlang::sym("TO")) %>%
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0)*0.5 + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -530,7 +530,7 @@ testSC <- function(switches,dropzeros=TRUE,
                     !!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PGT = (sum(!!rlang::sym("DELTA") < 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),    
@@ -541,7 +541,7 @@ testSC <- function(switches,dropzeros=TRUE,
                     !!rlang::sym("FROM"), !!rlang::sym("TO")) %>% 
                 dplyr::summarize(
                     RECON = mean(!!rlang::sym("RECON")),
-                    PERMUTE = mean(!!rlang::sym("PERMUTE")),
+                    PERMUTE = mean(!!permute),
                     PLT = (sum(!!rlang::sym("DELTA") > 0) + 
                         sum(!!rlang::sym("DELTA") == 0) + pseudocount)/
                         (dplyr::n() + pseudocount),
@@ -558,12 +558,15 @@ testSC <- function(switches,dropzeros=TRUE,
 }
 
 
-#' Get divergence from MRCA for each tip
+#' Get divergence from root of tree for each tip
 #' 
-#' \code{rootToTop} performs root-to-tip regression permutation test
+#' \code{getDivergence} get sum of branch lengths leading from the 
+#' root of the tree. If the germline sequence is included in the tree,
+#' this will equal the germline divergence. If germline removed,
+#' this will equal the MRCA divergence
 #' @param    phy          Tree object
 #' @param    minlength    Branch lengths to collapse in trees
-#' @return   A named vector of each tip's divergence from the tree's MRCA.
+#' @return   A named vector of each tip's divergence from the tree's root.
 #'
 #' @export
 getDivergence = function(phy, minlength=0.001){
@@ -603,7 +606,7 @@ resolvePolytomies = function(phy, clone, minlength=0.001,
     
     data <- clone@data
     phy <- rerootTree(ape::di2multi(phy,tol=minlength),
-        germline=germline)
+        germline=germline,verbose=0)
     tips <- phy$tip.label
     if(sum(!data[[sequence]] %in% phy$tip.label) > 0){
         stop("Tree and data sequence ids don't match")
@@ -631,7 +634,7 @@ resolvePolytomies = function(phy, clone, minlength=0.001,
         for(i in 1:length(node_ns)){
             nc <- node_ns[i]
             # unfortuantely processing is different if clade is > 1 tip.
-            if(nc <= length(phy$tip.label)){
+            if(nc <= length(phy$tip.label)){ #clade is a tip
                 clades[[i]] <- ape::keep.tip(phy, tip = nc)
                 times[[i]] <- unique(data[data[[sequence]] %in%
                     clades[[i]]$tip.label,][[time]])
@@ -681,10 +684,10 @@ resolvePolytomies = function(phy, clone, minlength=0.001,
         }
         tphy <- ape::drop.tip(phy, collapse.singles=TRUE, trim.internal=FALSE, tip = 
             ape::extract.clade(phy, node = target_node)$tip.label, subtree=TRUE)
-        dumb_tip <- paste0("[",length(polytomy$tip.label),"_tips]")
-        ntree <- ape::bind.tree(tphy, polytomy, where=which(tphy$tip.label==dumb_tip),
+        pruned_tip <- paste0("[",length(polytomy$tip.label),"_tips]")
+        ntree <- ape::bind.tree(tphy, polytomy, where=which(tphy$tip.label==pruned_tip),
             position=polytomy$root.edge)
-        ntree <- ape::drop.tip(ntree, tip=dumb_tip)
+        ntree <- ape::drop.tip(ntree, tip=pruned_tip)
         phy <- ntree
         polytomies <- table(phy$edge[,1])
         polytomies <- names(polytomies[polytomies > 2])
@@ -844,9 +847,9 @@ runCorrelationTest = function(phy, clone, permutations, minlength=0.001,
 #' @param    clones       A \code{tibble} object containing airrClone and \code{phylo} objects
 #' @param    permutations Number of permutations to run
 #' @param    polyresolve  Resolve polytomies to have a minimum number of 
-#'                         single timepoint clades
-#' @param    permutation  Permute among single timepoint clades or uniformly
-#'                         among tips
+#'                        single timepoint clades
+#' @param    perm_type    Permute among single timepoint clades or uniformly
+#'                        among tips
 #' @param    time         Column name holding numeric time information
 #' @param    sequence     Column name holding sequence ID
 #' @param    germline     Germline sequence name
@@ -871,7 +874,7 @@ runCorrelationTest = function(phy, clone, permutations, minlength=0.001,
 #'   \item  \code{min_p}: Minimum p value of data, determined by either the number of
 #'         distinct clade/timepoint combinations or number of permutations.
 #'   \item  \code{nposs}: Number of possible distinct timepoint/clade combinations.
-#'   \item  \code{nclust}: Number of clusters used in permutation. If permutation="uniform"
+#'   \item  \code{nclust}: Number of clusters used in permutation. If perm_type="uniform"
 #'         this is the number of tips.
 #'   \item  \code{p_gt/p_lt}: P value that permuted correlations are greater or less 
 #'         than observed correlation. Only returned if alternative = "two.sided"
@@ -881,16 +884,37 @@ runCorrelationTest = function(phy, clone, permutations, minlength=0.001,
 #' @seealso Uses output from \code{getTrees}.
 #' @export
 correlationTest = function(clones, permutations=1000, minlength=0.001,
-    permutation = c("clustered", "uniform"), time="time", 
+    perm_type = c("clustered", "uniform"), time="time", 
     sequence="sequence_id", germline = "Germline",
     verbose=FALSE, polyresolve = TRUE,
     alternative = c("greater","two.sided"),
     storeTree = FALSE, nproc=1){
 
+    if(!"tbl" %in% class(clones)){
+        print(paste("clones is of class",class(clones)))
+        stop("clones must be a tibble of airrClone objects!")
+    }else{
+        if(class(clones$data[[1]]) != "airrClone"){
+            print(paste("clones is list of class",class(clones$data[[1]])))
+            stop("clones must be a list of airrClone objects!")
+        }
+    }
+    if(!"trees" %in% names(clones)){
+        stop("clones must have trees column!")
+    }
+    time_check <- unlist(lapply(clones$data, function(x)!time %in% names(x@data)))
+    if(sum(time_check) > 0){
+        stop(paste("Time column",time,"not found in clone object (must be trait value in formatClones)"))
+    }
+    time_check <- unlist(lapply(clones$data, function(x)!is.numeric(x@data[[time]])))
+    if(sum(time_check) > 0){
+        stop(paste("Time column",time,"contains non-numeric values, impossible to continue"))
+    }
+
     results <- parallel::mclapply(1:nrow(clones),function(x)
         runCorrelationTest(clones$trees[[x]], clones$data[[x]],
         permutations, minlength=minlength, polyresolve=polyresolve,
-        permutation=permutation, time= time, 
+        permutation=perm_type, time= time, 
         sequence=sequence, germline=germline,
         verbose=verbose, alternative=alternative),
         mc.cores=nproc)

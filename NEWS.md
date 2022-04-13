@@ -1,3 +1,20 @@
+Version 1.0.0:  April 8, 2022
+-------------------------------------------------------------------------------
+
++ Deprecated bootstrapTrees in favor of findSwitches
++ Deprecated getSeq in favor of getNodeSeq
++ Added vignettes for discrete trait analysis and measurable evolution
++ Changed permutation to perm_type in correlationTest
++ Added common_scale to plotTrees
++ Removed trace and warning printouts from getTrees(build="pml")
+
+
+Version 0.1.0:  July 13, 2021
+-------------------------------------------------------------------------------
+
++ Initial CRAN release.
+
+
 Version 0.0.3:  December 12, 2020
 -------------------------------------------------------------------------------
 

@@ -8,7 +8,7 @@
 #
 # @return   A color hex code representing the average of input colors
 #
-combineColors <- function(x,pal){
+combineColors <- function(x, pal){
     cols <- rowMeans(grDevices::col2rgb(pal[as.character(x)]))
     col <- grDevices::rgb(cols[1],cols[2],cols[3],maxColorValue=255)
     return(col)
@@ -24,7 +24,7 @@ combineColors <- function(x,pal){
 #'
 #' @seealso \link{getTrees}, \link{plotTrees}
 #' @export
-getPalette <- function(states,palette){
+getPalette <- function(states, palette){
     if(palette == "AmG"){
                 #M        D         G13       A1        G24
         pal <- c("#000000", "#696969", "#33a02c", "#1f78b4", "#e31a1c",
@@ -64,7 +64,7 @@ getPalette <- function(states,palette){
 #'
 #' @export
 condenseTrees <- function(trees, states, palette){
-    if(class(trees) == "phylo"){
+    if(is(trees,"phylo")){
         trees <- list(trees)
         class(trees) <- "multiPhylo"
     }
@@ -143,6 +143,8 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #' @param    scale        width of branch length scale bar
 #' @param    node_palette color palette for nodes
 #' @param    tip_palette  color palette for tips
+#' @param    common_scale strecth plots so branches are on same scale?
+#'                        determined by sequence with highest divergence
 #' @param    layout       rectangular or circular tree layout?
 #' @param    node_nums    plot internal node numbers?
 #' @param    tip_nums     plot tip numbers?
@@ -154,12 +156,12 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #'
 #' @details
 #' Function uses \code{ggtree} functions to plot tree topologlies estimated by 
-#' \link{getTrees}, and \link{bootstrapTrees}. Object can be further modified with 
+#' \link{getTrees}, and \link{findSwitches}. Object can be further modified with 
 #' \code{ggtree} functions. Please check out 
 #' https://bioconductor.org/packages/devel/bioc/vignettes/ggtree/inst/doc/ggtree.html and
 #' cite \code{ggtree} in addition to \code{dowser} if you use this function.
 #'  
-#' @seealso \link{getTrees}, \link{bootstrapTrees}
+#' @seealso \link{getTrees}, \link{findSwitches}
 #' @examples
 #' data(ExampleClones)
 #' trees <- getTrees(ExampleClones[10,])
@@ -168,11 +170,12 @@ colorTrees <- function(trees, palette, ambig="blend"){
 plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL, 
     scale=0.01, node_palette="Dark2", tip_palette=node_palette, base=FALSE,
     layout="rectangular", node_nums=FALSE, tip_nums=FALSE, title=TRUE,
-    labelsize=NULL){
+    labelsize=NULL, common_scale=FALSE){
 
     tiptype = "character"
     if(!base){
         cols <- c()
+        # set up global tip and node palette
         if(!is.null(tips) && nodes && sum(tip_palette != node_palette) == 0){
             tipstates <- unique(c(unlist(lapply(trees$data,function(x)
                 unique(x@data[[tips]])))))
@@ -193,6 +196,7 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
             nodepalette <- nodestates[unique(names(nodestates))]
             cols <- c(combpalette,nodepalette[!names(nodepalette) %in% names(combpalette)])
         }else{
+            # set up global tip palette
             if(!is.null(tips)){
                 tipstates <- unique(c(unlist(lapply(trees$data,function(x)
                     unique(x@data[[tips]])))))
@@ -213,6 +217,7 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
                     cols <- tip_palette
                 }
             }
+            # set up global node palette
             if(nodes){
                 if(is.null(names(node_palette))){
                     nodestates <- unique(unlist(lapply(trees$trees,function(x)
@@ -234,6 +239,10 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
                 cols <- c(tip_palette,nodestates)
             }
         }
+        if(common_scale){
+            # get maximum divergence value
+            max_div <- max(unlist(lapply(trees$trees, function(x)max(getDivergence(x)))))
+        }
         
         ps <- lapply(1:nrow(trees),function(x)plotTrees(trees[x,],
             nodes=nodes,tips=tips,tipsize=tipsize,scale=scale,node_palette=node_palette,
@@ -244,6 +253,9 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
                     x <- x + theme(legend.position="right",
                     legend.box.margin=margin(0, -10, 0, 0))+
                     guides(color=guide_legend(title="State"))
+                    if(common_scale){
+                        x <- x + xlim(0, max_div*1.05)
+                    }
                     if(tiptype == "character"){
                         x <- x + scale_color_manual(values=cols)
                     }else{
@@ -258,7 +270,7 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
     data <- trees$data[[1]]
     p <- ggtree::ggtree(tree,layout=layout)
     if(!is.null(data)){
-        if(class(data) != "list"){
+        if(!is(data,"list")){
             data <- list(data)
         }
         index <- which(unlist(lapply(data,function(x)x@clone == tree$name)))
@@ -271,9 +283,9 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
         data <- data[[index]]
         gl <- dplyr::tibble(sequence_id="Germline")
         for(n in names(data@data)){
-            if(class(data@data[[n]]) == "numeric" || class(data@data[[n]]) == "integer"){
+            if(is(data@data[[n]],"numeric") || is(data@data[[n]], "integer")){
                 gl[[n]] <- NA
-            }else if(class(data@data[[n]]) == "character"){
+            }else if(is(data@data[[n]], "character")){
                 gl[[n]] <- "Germline"
             }else{
                 gl[[n]] <- "Germline"
@@ -292,9 +304,9 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
             stop("dataframe must be provided when tip trait specified")
         }
         if(!is.null(tipsize)){
-            if(class(tipsize) == "numeric"){
+            if(is(tipsize, "numeric")){
                 p <- p + ggtree::geom_tippoint(aes(color=!!rlang::sym(tips)),size=tipsize)
-            }else if(class(tipsize) == "character"){
+            }else if(is(tipsize, "character")){
                 p <- p + ggtree::geom_tippoint(aes(color=!!rlang::sym(tips),
                     size=!!rlang::sym(tipsize)))
             }
@@ -338,9 +350,9 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
 #' \code{treesToPDF} exports trees to a pdf in an orderly fashion
 #' @param  plots list of tree plots (from plotTrees)
 #' @param  file  output file name
-#' @param  nrow    number of rows per page
-#' @param  ncol    size of tip shape objects
-#' @param  ...    optional arguments passed to grDevices::pdf
+#' @param  nrow  number of rows per page
+#' @param  ncol  number of columns per page
+#' @param  ...   optional arguments passed to grDevices::pdf
 #' 
 #' @return   a PDF of tree plots
 #'  

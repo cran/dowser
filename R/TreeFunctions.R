@@ -7,7 +7,7 @@
 # @param    fastafile    file to be exported
 # @param    germid       sequence id of germline
 # @param    trait        trait to include in sequence ids
-# @param    empty        Not include real sequence information
+# @param    empty        don't include real sequence information
 #
 # @return   Name of exported fasta file.
 writeFasta <- function(c, fastafile, germid, trait=NULL, empty=FALSE){
@@ -68,8 +68,7 @@ readFasta <- function(file){
       if(is.na(id)){
         stop(paste("Error reading",file))
       }
-      seqs[[id]] <- paste0(seqs[[id]],
-        line)
+      seqs[[id]] <- paste0(seqs[[id]],line)
     }
   }
   seqs
@@ -83,7 +82,7 @@ readFasta <- function(file){
 #'
 #' @return   A named vector containing the states of the model
 #'
-#' @seealso \link{makeModelFile}, \link{bootstrapTrees}, \link{getTrees}
+#' @seealso \link{makeModelFile}, \link{findSwitches}, \link{getTrees}
 #'
 #' @export
 readModelFile <- function(file, useambig=FALSE){
@@ -96,15 +95,16 @@ readModelFile <- function(file, useambig=FALSE){
     names(states) <- states
     
     if(useambig){
+        stop("Ambiguous states not currently supported, please useambig=FALSE")
         astart <- which(mfile == "#AMBIGUOUS")
         ambigs <- mfile[(astart+1):length(mfile)]
         asplit <- strsplit(ambigs, split=" ")
         ambig <- unlist(lapply(asplit, function(x)x[1]))
         names(ambig) <- unlist(lapply(asplit, function(x)x[2]))
-        ambig <- ambig[names(ambig) != "M"]
+        ambig <- ambig[ambig != "GERM"]
         nambig <- states[!states %in% names(ambig)]
         names(nambig) <- nambig
-        ambig <- c(ambig, nambig)
+        ambig <- c(ambig, states)
     }else{
         ambig <- states
     }
@@ -124,7 +124,7 @@ readModelFile <- function(file, useambig=FALSE){
 #' Currently the only option for \code{constraints} is "irrev", which
 #' forbids switches moving from left to right in the \code{states} vector.
 #'  
-#' @seealso \link{readModelFile}, \link{getTrees}, \link{bootstrapTrees}
+#' @seealso \link{readModelFile}, \link{getTrees}, \link{findSwitches}
 #'
 #' @export
 makeModelFile <- function(file, states, constraints=NULL){
@@ -172,61 +172,92 @@ makeModelFile <- function(file, states, constraints=NULL){
 readSwitches <- function(file){
     t <- read.table(file,sep="\t",stringsAsFactors=FALSE)
     names(t) <- c("REP","FROM","TO","SWITCHES")
-    switches <- t
-    switches
+    t
 }
 
 # Make bootstrap replicate of clonal alignment
 # 
 # \code{bootstrapClones} Filler
-# @param    clone    \code{airrClone} object
-# @param    reps     Number of bootstrap replicates
+# @param    clone     \code{airrClone} object
+# @param    reps      Number of bootstrap replicates
+# @param    partition If "locus" Bootstrap heavy/lights separately
 #
 # @return   A list of \code{airrClone} objects with 
 # bootstrapped sequneces
-bootstrapClones  <- function(clone, reps=100){
-    sarray <- strsplit(clone@data$sequence,split="")
-    garray <- strsplit(clone@germline,split="")[[1]]
-    index <- 1:stats::median(nchar(clone@data$sequence))
+bootstrapClones  <- function(clone, reps=100, partition="locus"){
+    if(clone@phylo_seq == "hlsequence"){
+        sarray <- strsplit(clone@data$hlsequence,split="")
+        garray <- strsplit(clone@hlgermline,split="")[[1]]
+        index <- 1:stats::median(nchar(clone@data$hlsequence))
+    }else if(clone@phylo_seq == "sequence"){
+        sarray <- strsplit(clone@data$sequence,split="")
+        garray <- strsplit(clone@germline,split="")[[1]]
+        index <- 1:stats::median(nchar(clone@data$sequence))
+    }else if(clone@phylo_seq == "lsequence"){
+        sarray <- strsplit(clone@data$lsequence,split="")
+        garray <- strsplit(clone@lgermline,split="")[[1]]
+        index <- 1:stats::median(nchar(clone@data$lsequence))
+    }else{
+        stop(paste("phyloseq option",clone@phylo_seq,"not recognized"))
+    }
     bootstraps <- list()
     for(i in 1:reps){
         clone_copy <- clone
-        sindex <- sample(index,length(index),replace=TRUE)
-        #print(paste(length(unique(sindex)),length(unique(index))))
-        clone_copy@data$sequence <- unlist(lapply(sarray,
-            function(x)paste(x[sindex],collapse="")))
-        clone_copy@germline <- paste(garray[sindex],collapse="")
+        if(partition == "locus"){
+            sindex <- unlist(lapply(unique(clone@locus), function(x)
+                sample(which(clone@locus == x), replace=TRUE)))
+        }else{
+            sindex <- sample(index,length(index),replace=TRUE)
+        }
+        if(clone@phylo_seq == "sequence"){
+            clone_copy@data$sequence <- unlist(lapply(sarray,
+                function(x)paste(x[sindex],collapse="")))
+            clone_copy@germline <- paste(garray[sindex],collapse="")
+        }else if(clone@phylo_seq == "hlsequence"){
+            clone_copy@data$hlsequence <- unlist(lapply(sarray,
+                function(x)paste(x[sindex],collapse="")))
+            clone_copy@hlgermline <- paste(garray[sindex],collapse="")
+        }else if(clone@phylo_seq == "lsequence"){
+            clone_copy@data$lsequence <- unlist(lapply(sarray,
+                function(x)paste(x[sindex],collapse="")))
+            clone_copy@lgermline <- paste(garray[sindex],collapse="")
+        }else{
+            stop(paste("phylo_seq",clone@phylo_seq,"not recognized"))
+        }
         bootstraps[[i]] <- clone_copy
     }
     bootstraps
 }
 
-# Do IgPhyML maximum parsimony reconstruction
-# 
-# \code{reconIgPhyML} IgPhyML parsimony reconstruction function
-# @param    file       IgPhyML lineage file (see writeLineageFile)
-# @param    modefile   File specifying parsimony model
-# @param    cloneid    id for IgPhyML run
-# @param    igphyml    location of igphyml executable
-# @param    mode       return trees or count switches? (switches or trees)
-# @param    type       get observed switches or permuted switches?
-# @param    nproc      cores to use for parallelization
-# @param    quiet      amount of rubbish to print
-# @param    rm_files   remove temporary files?
-# @param    rm_dir     remove temporary directory?
-# @param    states     states in parsimony model
-# @param    palette    palette for coloring tree (see getPallete)
-# @param    resolve    level of polytomy resolution. 0=none, 
-#                      1=maximum parsimony, 2=maximum ambiguity
-# @param    rseed      random number seed if desired
-#
-# @return   Either a tibble of switch counts or a list
-#           of trees with internal nodes predicted by parsimony.
-#
-reconIgPhyML <- function(file, modelfile, cloneid, 
-    igphyml="igphyml",    mode="switches", type="recon",
+#' Do IgPhyML maximum parsimony reconstruction
+#' 
+#' \code{reconIgPhyML} IgPhyML parsimony reconstruction function
+#' @param    file          IgPhyML lineage file (see writeLineageFile)
+#' @param    modelfile      File specifying parsimony model
+#' @param    id            id for IgPhyML run
+#' @param    igphyml       location of igphyml executable
+#' @param    mode          return trees or count switches? (switches or trees)
+#' @param    type          get observed switches or permuted switches?
+#' @param    nproc         cores to use for parallelization
+#' @param    quiet         amount of rubbish to print
+#' @param    rm_files      remove temporary files?
+#' @param    rm_dir        remove temporary directory?
+#' @param    states        states in parsimony model
+#' @param    palette       palette for coloring tree (see getPallete)
+#' @param    resolve       level of polytomy resolution. 0=none, 
+#'                         1=maximum parsimony, 2=maximum ambiguity
+#' @param    rseed         random number seed if desired
+#' @param    force_resolve continue even if polytomy resolution fails?
+#' @param    ...           additional arguments
+#'
+#' @return   Either a tibble of switch counts or a list
+#'           of trees with internal nodes predicted by parsimony.
+#' @export
+reconIgPhyML <- function(file, modelfile, id, 
+    igphyml="igphyml", mode="switches", type="recon",
     nproc=1, quiet=0, rm_files=FALSE, rm_dir=NULL, 
-    states=NULL, palette=NULL, resolve=2, rseed=NULL,...){
+    states=NULL, palette=NULL, resolve=2, rseed=NULL,
+    force_resolve=FALSE, ...){
     
     #args <- list(...)
     igphyml <- path.expand(igphyml)
@@ -246,15 +277,22 @@ reconIgPhyML <- function(file, modelfile, cloneid,
         stop(paste("type must be either recon, permute, or permuteAll"))
     }
 
+    if(quiet > 0){
+        print(paste("Resolve:",resolve,"Force resolve?",force_resolve))
+    }
     recon <- paste0(file,"_igphyml_parstats_",type,".txt")
     logfile <- paste0(file,".log")
     log <- paste(">>",logfile)
     permute <- ""
+    force_resolve_option <- ""
     if(type == "permute"){
         permute <- "--permute"
     }
     if(type == "permuteAll"){
         permute <- "--permuteAll"
+    }
+    if(force_resolve){
+        force_resolve_option <- "--force_resolve"
     }
     if(is.null(rseed)){
         rseed <- ""
@@ -264,7 +302,7 @@ reconIgPhyML <- function(file, modelfile, cloneid,
     command <- paste("--repfile",file,
         "--recon",modelfile,"--threads",nproc,"--polyresolve",resolve,
         "-m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id",type,permute,
-        rseed,log)
+        force_resolve_option,rseed,log)
     params <- list(igphyml,command,stdout=TRUE,stderr=TRUE)
     if(quiet > 2){
         print(paste(params,collapse=" "))
@@ -295,7 +333,7 @@ reconIgPhyML <- function(file, modelfile, cloneid,
     }
     if(mode == "switches"){
         recons <- readSwitches(recon)
-        recons$CLONE <- cloneid
+        recons$CLONE <- id
         recons$TYPE <- toupper(type)
         results <- dplyr::as_tibble(recons)
     }else{
@@ -380,7 +418,7 @@ readLineages <- function(file, states=NULL, palette="Dark2",
         nnodes <- length(unique(c(tf$edge[,1],tf$edge[,2])))
         tf$nodes <- rep(list(sequence=NULL),times=nnodes)
         if(type=="jointpars"){
-            tf <- rerootTree(tf,"Germline")
+            tf <- rerootTree(tf,"Germline",verbose=0)
         }else{
             tf$nodes <- lapply(1:length(tf$nodes),function(x){
                 tf$nodes[[x]]$sequence <- tf$node.comment[x]
@@ -578,7 +616,7 @@ buildPhylo <- function(clone, exec, temp_path=NULL, verbose=0,
                 verbose=verbose>0,temp_path=temp_path,onetree=onetree)},
             error=function(e){print(paste("buildPhylipLineage error:",e));stop()})
         tree <- alakazam::graphToPhylo(tree)
-        tree <- rerootTree(tree, germline="Germline")
+        tree <- rerootTree(tree, germline="Germline",verbose=0)
         tree <- ape::ladderize(tree,right=FALSE)
         tree$name <- clone@clone
         tree$tree_method <- paste0("phylip::",method)
@@ -631,7 +669,6 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
         tree <- tryCatch(phangorn::pratchet(data,trace=FALSE),warning=function(w)w)
         tree <- phangorn::acctran(ape::multi2di(tree,random=resolve_random),data)
         tree <- ape::unroot(tree)
-        #tree <- rerootTree(tree,"Germline")
         tree$edge.length <- tree$edge.length/nchar(germline)
         tree$tree_method <- "phangorn::prachet"
         tree$edge_type <- "genetic_distance"
@@ -653,7 +690,6 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
             pat <- patterns[,attr(seqs_pars,"index")]
             if(asr == "seq"){
                 thresh <- pat > asr_thresh
-                #acgt <- toupper(rownames(thresh))
                 acgt <- c("A","C","G","T")
                 seq_ar <- unlist(lapply(1:ncol(pat),function(x){
                     site <- acgt[thresh[,x]]
@@ -673,7 +709,7 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
         })
     }
     opars <- phangorn::parsimony(ape::di2multi(tree),data)
-    tree <- rerootTree(tree,"Germline")
+    tree <- rerootTree(tree,"Germline",verbose=0)
     npars <- phangorn::parsimony(ape::di2multi(tree),data)
     if(npars != opars){
         stop(paste("Error in rerooting tree",tree$name,
@@ -694,13 +730,14 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
 #' @param    data_type  Are sequences DNA or AA?
 #' @param    verbose    Print error messages as they happen?
 #' @param    optNni     Optimize tree topology
+#' @param    optQ       Optimize Q matrix
 #'
 #' @return  \code{phylo} object created by phangorn::optim.pml with nodes
 #'          attribute containing reconstructed sequences.
 #' @export
 buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="seq", 
-    asr_thresh=0.05, tree=NULL, data_type="DNA", optNni=TRUE, verbose=FALSE){
-    print(paste("sub_model", sub_model))
+    asr_thresh=0.05, tree=NULL, data_type="DNA", optNni=TRUE, optQ=TRUE, verbose=FALSE){
+    
     seqs <- clone@data[[seq]]
     names <- clone@data$sequence_id
     if(seq == "hlsequence"){
@@ -727,14 +764,11 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
     if(is.null(tree)){
         dm  <- phangorn::dist.ml(data)
         treeNJ  <- ape::multi2di(phangorn::NJ(dm))
-
-        #change negative edge lengths to zero!
-        treeNJ$edge.length[treeNJ$edge.length < 0] <- 0
-        pml <- phangorn::pml(treeNJ,data=data)
-        fit <- tryCatch(phangorn::optim.pml(pml, model=sub_model, optNni=optNni,
+        treeNJ$edge.length[treeNJ$edge.length < 0] <- 0 #change negative edge lengths to zero
+        pml <- phangorn::pml(ape::unroot(treeNJ),data=data)
+        fit <- tryCatch(phangorn::optim.pml(pml, model=sub_model, optNni=optNni, optQ=optQ,
          optGamma=gamma, rearrangement="NNI",control=phangorn::pml.control(epsilon=1e-08,
-          maxit=10, trace=1L)),
-            error=function(e)e)
+          maxit=10, trace=0)), error=function(e)e)
         if("error" %in% class(fit)){
             if(verbose){
                 print(fit)
@@ -778,7 +812,7 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
             tree$nodes[[x]]
         })
     }
-    tree <- rerootTree(tree,"Germline")
+    tree <- rerootTree(tree,"Germline",verbose=0)
     return(tree)
 }
 
@@ -845,7 +879,6 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
         warning("Omega parameter incompatible with partition, setting to e,e,e,e")
         omega = "e,e,e,e"
     }
-
     igphyml <- path.expand(igphyml)
     if(file.access(igphyml, mode=1) == -1) {
         stop("The file ", igphyml, " cannot be executed.")
@@ -944,9 +977,7 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
         names(results$param) = gsub("omega_3","omega_lightfwr",names(results$param))
         names(results$param) = gsub("omega_4","omega_lightcdr",names(results$param))
     }
-    ASR <- readFasta(file.path(temp_path,
-        paste0(id,"_lineages_",id,
-        "_pars_hlp_asr.fasta")))
+    ASR <- readFasta(file.path(temp_path, paste0(id,"_lineages_",id,"_pars_hlp_asr.fasta")))
     trees <- results$trees
     params <- results$param[-1,]
     for(i in 1:nrow(params)){
@@ -1042,13 +1073,14 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
 #' @return  \code{phylo} object rooted at the specified germline
 #' 
 #' @export
-rerootTree <- function(tree, germline, min=0.001, verbose=0){
+rerootTree <- function(tree, germline, min=0.001, verbose=1){
     ntip <- length(tree$tip.label)
     uca <- ntip+1
     if(!germline %in% tree$tip.label){
         stop(paste(germline,"not found in tip labels!"))
     }
     olength <- sum(tree$edge.length)
+    odiv <- ape::cophenetic.phylo(tree)["Germline",]
     if(ape::is.rooted(tree)){
         if(verbose > 0){
             print("unrooting tree!")
@@ -1068,19 +1100,26 @@ rerootTree <- function(tree, germline, min=0.001, verbose=0){
             tree$edge.length[tree$edge[,1] == root &
             tree$edge[,2] == child] <= min){
             if(verbose > 0){
-                print("tree already rooted!")
+                print("tree already rooted at germline!")
             }
             return(tree)
         }
+        warning("Rooting already rooted trees not fully supported.")
+        # if tree rooted somewhere besides the germline
+        # cut out the root node and directly attach
+        # its former descendants to each other.
         tree$edge <- tree$edge[!rindex,]
         tree$edge <- rbind(tree$edge,c(parent,child))
         sumedge <- sum(tree$edge.length[rindex])
         tree$edge.length <- tree$edge.length[!rindex]
         tree$edge.length[length(tree$edge.length)+1] <- sumedge
         tree$Nnode <- tree$Nnode - 1
-        if(parent != uca){
+        if(parent != uca){ 
+            #if new parent doesn't have correct uca number, swap it
+            #uca node should have been the node that was cut out
+            #if not the parent
             if(uca %in% tree$edge){
-                stop("something weird")
+                stop("something weird happened during unrooting")
             }
             root <- parent
             tree$edge[tree$edge[,1]==parent,1] <- uca
@@ -1091,6 +1130,7 @@ rerootTree <- function(tree, germline, min=0.001, verbose=0){
                 tree$nodes[[parent]] <- s
             }
         }
+        # set the node information for the appropriate root
         tree$edge[tree$edge[,1]==max,1] <- root
         tree$edge[tree$edge[,2]==max,2] <- root
         if(!is.null(tree$nodes)){
@@ -1098,36 +1138,46 @@ rerootTree <- function(tree, germline, min=0.001, verbose=0){
             tree$nodes[[max]] <- NULL
         }
     }
+    #pairwise patristic distance among all nodes
+    odist <- ape::dist.nodes(tree)
+
     edge <- tree$edge
     germid <- which(tree$tip.label == germline)
     
     max <- max(edge)
-    nnode <- max+1
-    uca <- ntip+1
+    nnode <- max+1 #new node number
+    uca <- ntip+1 #uca needs to be first internal node
     
+    # replace current uca (hereafter mrca) with new node number in edge list
     edge[edge[,1]==uca,1] <- nnode
     edge[edge[,2]==uca,2] <- nnode
     
+    # make MRCA connect to new UCA node instead of germline
     edge[edge[,2] == germid,2] <- uca
-    edge <- rbind(edge,c(uca,germid))
+
+    #add 0 length edge from UCA to germline
+    edge <- rbind(edge,c(uca,germid)) 
     tree$edge.length[length(tree$edge.length)+1] <- 0
 
-    #recursive function to swap nodes while 
-    #preserving internal node ids
-    swap <- function(tnode,edge,checked){
+    # recursive function to swap nodes while 
+    # preserving internal node ids
+    # this is what actually reroots the trees
+    swap <- function(tnode, edge, checked){
         if(tnode %in% checked){
             print("r edge")
             return(edge)
         }
         checked <- c(checked,tnode)
-        children <- edge[edge[,1] == tnode,2]
-        parent <- edge[edge[,2] == tnode,1]
+        children <- edge[edge[,1] == tnode,2] #get children of this node
+        parent <- edge[edge[,2] == tnode,1] #get parent of this node
+        # only one child node, or if parent hasn't been checked, swap target and parent
         if(length(children) < 2 || sum(!parent %in% checked) > 0){
             parent <- edge[edge[,2] == tnode,1]
             parent <- parent[!parent %in% checked]
             edge[edge[,1] == parent & edge[,2] == tnode,] <- c(tnode,parent)
             children <- edge[edge[,1] == tnode,2]
         }
+        #make sure descendant branches are facing the correct direction
         for(tnode in children){
             if(!tnode %in% checked){
                 edge <- swap(tnode,edge,checked)
@@ -1136,19 +1186,40 @@ rerootTree <- function(tree, germline, min=0.001, verbose=0){
         return(edge)
     }
     
-    edge <- swap(uca,edge,checked=c(1:ntip))
+    #place new UCA node at root of tree
+    edge <- swap(uca, edge, checked=c(1:ntip))
 
-    tree$edge=edge
+    tree$edge <- edge
     tree$Nnode <- length(unique(edge[,1]))
     tree <- ape::reorder.phylo(tree,"postorder")
-     if(!is.null(tree$nodes)){
+
+    # swap node information between mrca and old uca
+    # uca gets same info as germline
+    if(!is.null(tree$nodes)){
         tree$nodes[[nnode]] <- tree$nodes[[uca]]
         tree$nodes[[uca]] <- tree$nodes[[germid]]
     }
+    # sanity check tree length, divergence, and internal node distances
     nlength <- sum(tree$edge.length)
+    ndiv <- ape::cophenetic.phylo(tree)["Germline",]
     if(abs(nlength - olength) > 0.001){
         stop(paste("Error in rerooting tree",tree$name,
-            "Tree length not consistent"))
+            "tree length not consistent"))
+    }
+    divergence_diff <- odiv - ndiv[names(odiv)]
+    if(max(abs(divergence_diff)) > 0.001){
+        stop(paste("Error in rerooting tree",tree$name,
+            "germline divergences not consistent"))
+    }
+    ndist <- ape::dist.nodes(tree)
+    ndist[uca,] <- ndist[nnode,]
+    ndist[,uca] <- ndist[,nnode]
+    ndist <- ndist[,-nnode]
+    ndist <- ndist[-nnode,]
+    max_diff <- max(odist - ndist)
+    if(abs(max_diff) > 0.001){
+        stop(paste("Error in rerooting tree",tree$name,
+            "node distances not consistent"))
     }
     return(tree)
 }
@@ -1198,7 +1269,7 @@ rerootTree <- function(tree, germline, min=0.001, verbose=0){
 #'
 #' For examples and vignettes, see https://dowser.readthedocs.io
 #'  
-#' @seealso \link{formatClones}, \link{bootstrapTrees}, \link{buildPhylo},
+#' @seealso \link{formatClones}, \link{findSwitches}, \link{buildPhylo},
 #' \link{buildPratchet}, \link{buildPML}, \link{buildIgphyml}
 #' @examples
 #' data(ExampleClones)
@@ -1264,7 +1335,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
             }
         }
         if(is.null(trait)){
-            stop("trait must be specified when running igphyml")
+            stop("trait must be specified when igphyml-based trait reconstruction")
         }
         if(is.null(modelfile)){
             states <- unique(unlist(lapply(data,function(x)x@data[,trait])))
@@ -1374,9 +1445,9 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
             id=id, trait=trait, rep="trees")
     
         mtrees <- reconIgPhyML(file, modelfile, igphyml=igphyml, 
-            mode="trees", cloneid=NULL, quiet=quiet, nproc=nproc,
+            mode="trees", id=NULL, quiet=quiet, nproc=nproc,
             rm_files=rm_temp, rm_dir=rm_dir, states=states, 
-            palette=palette,...)
+            palette=palette, ...)
 
         # remove trait value from tips
         mtrees <- lapply(mtrees,function(x){
@@ -1501,8 +1572,10 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
     }
     maxiter <- 1000
     while(maxiter > 0){
+        # edge list, plus whether or not reconstructed sequences are identical
         edges <- cbind(edges[,1:2],unlist(lapply(1:nrow(edges),function(x)
             trees$nodes[[edges[x,1]]]$sequence==trees$nodes[[edges[x,2]]]$sequence)))
+        # get list of edges to collapse
         if(!tips){
             zedges <- edges[edges[,2] > btip & edges[,3] == 1,]
         }else{
@@ -1516,8 +1589,9 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
         }else{
             break
         }
-        ms <- c()
-        ns <- c()
+        # replace identical nodes with smaller of the node numbers
+        ms <- c() #smaller node numbers
+        ns <- c() #larger node numbers
         for(i in 1:nrow(zedges)){
             m <- min(zedges[i,1:2])
             n <- max(zedges[i,1:2])
@@ -1526,6 +1600,7 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
             ms <- c(ms,m)
             ns <- c(ns,n)
         }
+        # remove edges that lead to their own node
         edge_l <- edge_l[edges[,1] != edges[,2]]
         edges <- edges[edges[,1] != edges[,2],]
         maxiter <- maxiter - 1
@@ -1537,7 +1612,7 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
     if(tips){
         tnodes <- unique(edges[edges[,1] <= btip,1])
         m <- max(edges)+1
-        for(n in tnodes){
+        for(n in tnodes){ #replace tip number with new number
             edges[edges[,1] == n,1] <- m
             edges[edges[,2] == n,2] <- m
             trees$nodes[[m]] <- trees$nodes[[n]]
@@ -1546,10 +1621,12 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
         }
         ttips <- ttips[-tnodes]
     }
+    # make key of new node names
     nodes <- sort(unique(c(edges[,1],edges[,2])))
     nnodes <- 1:length(nodes)
     names(nnodes) <- nodes
 
+    # replace old nodes with new node names and info
     nedges <- edges
     nsequences <- as.list(1:length(nodes))
     for(n in names(nnodes)){
@@ -1575,16 +1652,20 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
     trees$node.label <- nodelabs[(length(ttips)+1):length(nsequences)]
 
     if(check){
-        subt <- ape::subtrees(otrees)
-        for(sub in subt){
-            seqs <- sub$tip.label
-            node <-  ape::getMRCA(otrees,tip=seqs)
-            cnode <- ape::getMRCA(trees,tip=seqs)
-            oseq <- otrees$nodes[[node]]$sequence
-            nseq <- trees$nodes[[cnode]]$sequence
-            if(oseq != nseq){
-                stop(paste("Node",node,"in clone tree",trees$name,
-                    "does not equal corresponding sequence in collapsed tree"))
+        if(tips){
+            warning("Cannot check nodes while collapsing tips (tips=TRUE)")
+        }else{
+            subt <- ape::subtrees(otrees)
+            for(sub in subt){
+                seqs <- sub$tip.label
+                node <-  ape::getMRCA(otrees,tip=seqs)
+                cnode <- ape::getMRCA(trees,tip=seqs)
+                oseq <- otrees$nodes[[node]]$sequence
+                nseq <- trees$nodes[[cnode]]$sequence
+                if(oseq != nseq){
+                    stop(paste("Node",node,"in clone tree",trees$name,
+                        "does not equal corresponding sequence in collapsed tree"))
+                }
             }
         }
     }
@@ -1593,7 +1674,7 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
 
 #' Return IMGT gapped sequence of specified tree node
 #' 
-#' \code{getSeq} Sequence retrieval function.
+#' \code{getNodeSeq} Sequence retrieval function.
 #' @param    data    a tibble of \code{airrClone} objects, the output of 
 #'                   \link{getTrees}
 #' @param    node    numeric node in tree (see details)
@@ -1605,11 +1686,11 @@ collapseNodes <- function(trees, tips=FALSE, check=TRUE){
 #'
 #' @details
 #' Use plotTrees(trees)[[1]] + geom_label(aes(label=node))+geom_tippoint() to show
-#' node labels, and getSeq to return internal node sequences
+#' node labels, and getNodeSeq to return internal node sequences
 #'  
 #' @seealso \link{getTrees}
 #' @export
-getSeq <- function(data, node, tree=NULL, clone=NULL, gaps=TRUE){
+getNodeSeq <- function(data, node, tree=NULL, clone=NULL, gaps=TRUE){
     if(is.null(tree)){
         if(is.null(clone)){
             stop("must provide either tree object or clone ID")
@@ -1639,6 +1720,27 @@ getSeq <- function(data, node, tree=NULL, clone=NULL, gaps=TRUE){
     }
     names(seqs) <- loci
     return(seqs)
+}
+
+#' Deprecated! Use getNodeSeq
+#' 
+#' \code{getSeq} Sequence retrieval function.
+#' @param    data    a tibble of \code{airrClone} objects, the output of 
+#'                   \link{getTrees}
+#' @param    node    numeric node in tree (see details)
+#' @param    tree    a \code{phylo} tree object containing \code{node}
+#' @param    clone   if \code{tree} not specified, supply clone ID in \code{data}
+#' @param    gaps    add IMGT gaps to output sequences?
+#' @return   A vector with sequence for each locus at a specified \code{node}
+#'           in \code{tree}.
+#'
+#' @seealso \link{getTrees}
+#' @export
+getSeq <- function(data, node, tree=NULL, clone=NULL, gaps=TRUE){
+
+    warning("getSeq is depracated and will be removed. Use getNodeSeq instead.")
+
+    return(getNodeSeq(data=data, node=node, tree=tree, clone=clone, gaps=gaps))
 }
 
 #' \code{downsampleClone} Down-sample clone to maximum tip/switch ratio
@@ -1688,7 +1790,19 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
             }
             # if tree provided, drop selected tips
             if(!is.null(tree)){
+                od <- getDivergence(tree)
+                otree <- tree
                 tree <- ape::drop.tip(tree, tip=rm)
+                nd <- getDivergence(tree)
+                maxdiff <- max(nd - od[names(nd)])
+                meandiff <- mean(nd - od[names(nd)])
+                if(maxdiff > 0.001){
+                    badtip <- names(which.max(nd - od[names(nd)]))
+                    warning(paste("clone",clone@clone,
+                        "downsampling divergences differ by max",
+                        signif(maxdiff,digits=2),"mean",
+                        signif(meandiff,digits=2), "worst tip", badtip))
+                }
                 if(sum(!cdata$sequence_id %in% tree$tip.label) == 0 &
                     sum(!tree$tip.label %in% c(cdata$sequence_id, "Germline"))){
                         stop(paste("clone",clone@clone," tree downsampling failed!"))       
@@ -1706,33 +1820,36 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
 #' Create a bootstrap distribution for clone sequence alignments, and estimate 
 #' trees for each bootstrap replicate.
 #' 
-#' \code{bootstrapTrees} Phylogenetic bootstrap function.
-#' @param clones      tibble \code{airrClone} objects, the output of 
-#'                   \link{formatClones}
-#' @param bootstraps number of bootstrap replicates to perform
-#' @param trait         trait to use for parsimony models (required if 
-#'                   \code{igphyml} specified)
-#' @param build        program to use for tree building (phangorn, dnapars)
-#' @param exec        location of desired phylogenetic executable
-#' @param igphyml     location of igphyml executible if trait models desired
-#' @param id         unique identifer for this analysis (required if 
-#'                   \code{igphyml} or \code{dnapars} specified)
-#' @param dir        directory where temporary files will be placed (required
-#'                   if \code{igphyml} or \code{dnapars} specified)
+#' \code{findSwitches} Phylogenetic bootstrap function.
+#' @param clones         tibble \code{airrClone} objects, the output of 
+#'                      \link{formatClones}
+#' @param permutations    number of bootstrap replicates to perform
+#' @param trait         trait to use for parsimony models
+#' @param igphyml       location of igphyml executible 
+#' @param build         program to use for tree building (phangorn, dnapars)
+#' @param exec          location of desired phylogenetic executable
+#' @param id            unique identifer for this analysis (required if 
+#'                      \code{igphyml} or \code{dnapars} specified)
+#' @param dir           directory where temporary files will be placed (required
+#'                      if \code{igphyml} or \code{dnapars} specified)
 #' @param modelfile     file specifying parsimony model to use
-#' @param fixtrees     keep tree topologies fixed?
-#'                   (bootstrapping will not be perfomed)
-#' @param nproc         number of cores to parallelize computations
-#' @param quiet        amount of rubbish to print to console
-#' @param rm_temp    remove temporary files (default=TRUE)
-#' @param palette     a named vector specifying colors for each state
-#' @param resolve     how should polytomies be resolved?
-#' @param keeptrees  keep trees estimated from bootstrap replicates? (TRUE)
-#' @param lfile      lineage file input to igphyml if desired (experimental)
-#' @param rep          current bootstrap replicate (experimental)
-#' @param seq        column name containing sequence information
-#' @param downsample downsample clones to have a maximum specified tip/switch ratio?
-#' @param tip_switch maximum allowed tip/switch ratio if downsample=TRUE
+#' @param fixtrees      keep tree topologies fixed?
+#'                      (bootstrapping will not be perfomed)
+#' @param nproc            number of cores to parallelize computations
+#' @param quiet           amount of rubbish to print to console
+#' @param rm_temp       remove temporary files (default=TRUE)
+#' @param palette       a named vector specifying colors for each state
+#' @param resolve       how should polytomies be resolved? 
+#'                       0=none, 1=max parsminy, 2=max ambiguity + polytomy skipping,
+#'                       3=max ambiguity
+#' @param keeptrees     keep trees estimated from bootstrap replicates? (TRUE)
+#' @param lfile         lineage file input to igphyml if desired (experimental)
+#' @param rep           current bootstrap replicate (experimental)
+#' @param seq           column name containing sequence information
+#' @param downsample    downsample clones to have a maximum specified tip/switch ratio?
+#' @param tip_switch    maximum allowed tip/switch ratio if downsample=TRUE
+#' @param boot_part     is  "locus" bootstrap columns for each locus separately
+#' @param force_resolve continue even if polytomy resolution fails?
 #' @param ...        additional arguments to be passed to tree building program
 #'
 #' @return   A list of trees and/or switch counts for each bootstrap replicate.
@@ -1759,26 +1876,41 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
 #' clones <- formatClones(ExampleAirr, trait="sample_id")
 #' 
 #' igphyml <- "~/apps/igphyml/src/igphyml"
-#' btrees <- bootstrapTrees(clones[1:2], bootstraps=10, nproc=1,
+#' btrees <- findSwitches(clones[1:2], permutations=10, nproc=1,
 #'    igphyml=igphyml, trait="sample_id")
 #' plotTrees(btrees$trees[[4]])[[1]]
 #' testPS(btrees$switches)
 #' }
 #' @export
-bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL, 
-    id=NULL, modelfile=NULL, build="pratchet", exec=NULL, igphyml=NULL, 
-    fixtrees=FALSE,    quiet=0, rm_temp=TRUE, palette=NULL, resolve=2, rep=NULL,
-    keeptrees=TRUE, lfile=NULL, seq="sequence", downsample=FALSE, tip_switch=20,
-    ...){
+findSwitches <- function(clones, permutations, trait, igphyml, 
+    fixtrees=FALSE, downsample=TRUE, tip_switch=20, nproc=1, 
+    dir=NULL, id=NULL, modelfile=NULL, build="pratchet", exec=NULL, 
+    quiet=0, rm_temp=TRUE, palette=NULL, resolve=2, rep=NULL,
+    keeptrees=FALSE, lfile=NULL, seq=NULL,
+    boot_part="locus", force_resolve=FALSE, ...){
 
     if(is.null(exec) && (!build %in% c("pratchet", "pml"))){
         stop("exec must be specified for this build option")
+    }
+    if(file.access(igphyml, mode=1) == -1) {
+        stop("Igphyml executable at ", igphyml, " cannot be executed.")
+    }
+    if(downsample & !quiet & is.null(rep)){
+        print(paste("Downsampling lineages to a maximum tip-to-switch ratio of",tip_switch))
+    }
+    if(!fixtrees & !quiet & is.null(rep)){
+        print("Re-building bootstrapped trees. Use fixtrees=TRUE to use fixed topologies.")
+        if(build=="igphyml"){
+            stop("Bootstrapping while build=igphyml not yet supported (bootstraps sample nucleotide sites)")
+        }
+    }else if(is.null(rep)){
+        print("Keeping tree topology constant. Use fixtrees=FALSE to bootstrap topologies.")
     }
 
     data <- clones$data
     if(fixtrees){
         if(!"trees" %in% names(clones)){
-            stop("trees column must be specified if fixtrees=TRUE")
+            stop("trees column must be included in input if fixtrees=TRUE (use getTrees first)")
         }
         if(class(clones$trees[[1]]) != "phylo"){
             stop("Trees must be a list of class phylo")
@@ -1856,16 +1988,16 @@ bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL,
         }
     }
     if(is.null(rep)){
-        reps <- as.list(1:bootstraps)
+        reps <- as.list(1:permutations)
         l <- parallel::mclapply(reps,function(x)
-            bootstrapTrees(clones ,rep=x, 
+            findSwitches(clones ,rep=x, 
             trait=trait, modelfile=modelfile, build=build, 
             exec=exec, igphyml=igphyml, 
-            id=id, dir=dir, bootstraps=bootstraps,
+            id=id, dir=dir, permutations=permutations,
             nproc=1, rm_temp=rm_temp, quiet=quiet,
             fixtrees=fixtrees, resolve=resolve, keeptrees=keeptrees,
             lfile=lfile, seq=seq, downsample=downsample, tip_switch=tip_switch,
-            ...),
+            boot_part=boot_part, force_resolve=force_resolve, ...),
             mc.cores=nproc)
         results <- list()
         results$switches <- NULL
@@ -1903,7 +2035,8 @@ bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL,
                 if(quiet > 3){
                     print(table(data[[i]]@data[,trait]))
                 }    
-                data[[i]] <- bootstrapClones(data[[i]], reps=1)[[1]]
+                data[[i]] <- bootstrapClones(data[[i]], reps=1, 
+                    partition=boot_part)[[1]]
             }
             if(quiet > 1){print("building trees")}
             reps <- as.list(1:length(data))
@@ -1956,21 +2089,22 @@ bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL,
             }
             rseed <- floor(stats::runif(1,0,10^7))+rep
             switches <- reconIgPhyML(file, modelfile, igphyml=igphyml, 
-                mode="switches", type="recon", cloneid=rep, 
+                mode="switches", type="recon", id=rep, 
                 quiet=quiet, rm_files=FALSE, rm_dir=NULL, nproc=nproc,
-                resolve=resolve, rseed=rseed)
+                resolve=resolve, rseed=rseed, force_resolve=force_resolve)
             permuted <- reconIgPhyML(file, modelfile, igphyml=igphyml, 
-                mode="switches", type="permute", cloneid=rep, 
+                mode="switches", type="permute", id=rep, 
                 quiet=quiet, rm_files=FALSE, rm_dir=NULL, nproc=nproc,
-                resolve=resolve, rseed=rseed)
+                resolve=resolve, rseed=rseed, force_resolve=force_resolve)
             if(!rm_temp){rm_dir=NULL}
             permuteAll <- reconIgPhyML(file, modelfile, igphyml=igphyml, 
-                mode="switches", type="permuteAll", cloneid=rep, 
+                mode="switches", type="permuteAll", id=rep, 
                 quiet=quiet, rm_files=rm_temp, rm_dir=rm_dir, nproc=nproc,
-                resolve=resolve, rseed=rseed)
+                resolve=resolve, rseed=rseed, force_resolve=force_resolve)
             switches <- rbind(switches,permuted)
             switches <- rbind(switches,permuteAll)
             switches$ID <- id
+            #REP and CLONE are swapped up in the lower functions, this corrects them
             temp <- switches$REP
             switches$REP <- switches$CLONE
             switches$CLONE <- temp
@@ -1994,3 +2128,59 @@ bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL,
     }
 }
 
+#' Deprecated! Please use findSwitches instead.
+#' 
+#' \code{bootstrapTrees} Phylogenetic bootstrap function.
+#' @param clones         tibble \code{airrClone} objects, the output of 
+#'                      \link{formatClones}
+#' @param bootstraps    number of bootstrap replicates to perform
+#' @param trait            trait to use for parsimony models (required if 
+#'                      \code{igphyml} specified)
+#' @param build           program to use for tree building (phangorn, dnapars)
+#' @param exec           location of desired phylogenetic executable
+#' @param igphyml        location of igphyml executible if trait models desired
+#' @param id            unique identifer for this analysis (required if 
+#'                      \code{igphyml} or \code{dnapars} specified)
+#' @param dir           directory where temporary files will be placed (required
+#'                      if \code{igphyml} or \code{dnapars} specified)
+#' @param modelfile        file specifying parsimony model to use
+#' @param fixtrees        keep tree topologies fixed?
+#'                      (bootstrapping will not be perfomed)
+#' @param nproc            number of cores to parallelize computations
+#' @param quiet           amount of rubbish to print to console
+#' @param rm_temp       remove temporary files (default=TRUE)
+#' @param palette        a named vector specifying colors for each state
+#' @param resolve        how should polytomies be resolved? 
+#'                       0=none, 1=max parsminy, 2=max ambiguity + polytomy skipping,
+#'                       3=max ambiguity
+#' @param keeptrees     keep trees estimated from bootstrap replicates? (TRUE)
+#' @param lfile         lineage file input to igphyml if desired (experimental)
+#' @param rep             current bootstrap replicate (experimental)
+#' @param seq           column name containing sequence information
+#' @param downsample    downsample clones to have a maximum specified tip/switch ratio?
+#' @param tip_switch    maximum allowed tip/switch ratio if downsample=TRUE
+#' @param boot_part     is  "locus" bootstrap columns for each locus separately
+#' @param force_resolve continue even if polytomy resolution fails?
+#' @param ...        additional arguments to be passed to tree building program
+#'
+#' @return   A list of trees and/or switch counts for each bootstrap replicate.
+#'  
+#' @export
+bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL, 
+    id=NULL, modelfile=NULL, build="pratchet", exec=NULL, igphyml=NULL, 
+    fixtrees=FALSE,    quiet=0, rm_temp=TRUE, palette=NULL, resolve=2, rep=NULL,
+    keeptrees=TRUE, lfile=NULL, seq=NULL, downsample=FALSE, tip_switch=20,
+    boot_part="locus", force_resolve=FALSE,...){
+
+    warning("boostrapTrees is depracated. Use findSwitches instead.")
+
+    s = findSwitches(clones ,rep=rep, 
+            trait=trait, modelfile=modelfile, build=build, 
+            exec=exec, igphyml=igphyml, 
+            id=id, dir=dir, permutations=bootstraps,
+            nproc=1, rm_temp=rm_temp, quiet=quiet,
+            fixtrees=fixtrees, resolve=resolve, keeptrees=keeptrees,
+            lfile=lfile, seq=seq, downsample=downsample, tip_switch=tip_switch,
+            boot_part=boot_part, force_resolve=force_resolve, ...)
+    return(s)
+}

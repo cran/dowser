@@ -117,6 +117,9 @@ readModelFile <- function(file, useambig=FALSE){
 #' @param    file          model file name to write.
 #' @param    states        vector of states to include in model.
 #' @param    constraints   constraints to add to model.
+#' @param    exceptions    vector of comma-separated states that are 
+#'                         exceptions to constraints
+#'
 #'
 #' @return   Name of model file
 #'
@@ -127,7 +130,7 @@ readModelFile <- function(file, useambig=FALSE){
 #' @seealso \link{readModelFile}, \link{getTrees}, \link{findSwitches}
 #'
 #' @export
-makeModelFile <- function(file, states, constraints=NULL){
+makeModelFile <- function(file, states, constraints=NULL, exceptions=NULL){
     write("#BEGIN", file=file)
     write(length(states), file=file, append=TRUE)
     write("", file=file, append=TRUE)
@@ -141,6 +144,11 @@ makeModelFile <- function(file, states, constraints=NULL){
         if(constraints=="irrev"){
             for(i in 1:(length(states)-1)){
                 for(j in (i+1):length(states)){
+                    if(paste0(states[j],",",states[i]) %in% exceptions){
+                        print(paste("Excepting",paste0(states[j],",",states[i]),
+                            "from constraints"))
+                        next
+                    }
                     write(paste(states[j], states[i], "1000"), 
                         file=file, append=TRUE)
                 }
@@ -161,7 +169,6 @@ makeModelFile <- function(file, states, constraints=NULL){
     }
     return(file)
 }
-
 
 # Read in a switches file from IgPhyML
 # 
@@ -413,7 +420,7 @@ readLineages <- function(file, states=NULL, palette="Dark2",
             tf <- condenseTrees(tf,states,palette)
         }
         germ <- tf$tip.label[grep("_GERM",tf$tip.label)]
-        tf$name <- strsplit(germ,split="_")[[1]][1]
+        tf$name <- gsub("_GERM$","",germ)
         tf$tip.label[which(tf$tip.label == germ)] <- "Germline"
         nnodes <- length(unique(c(tf$edge[,1],tf$edge[,2])))
         tf$nodes <- rep(list(sequence=NULL),times=nnodes)
@@ -475,6 +482,17 @@ writeLineageFile <- function(data, trees=NULL, dir=".", id="N", rep=NULL,
             g <- data[[i]]@hlgermline
         }else{
             stop(paste("phylo_seq not recognized",c@clone))
+        }
+
+        if(partition != "single"){
+            acceptable <- c("fwr1","fwr2","fwr3","fwr4","cdr1","cdr2","cdr3")
+            unacceptable <- unlist(lapply(data, function(x)sum(!x@region %in% acceptable) > 0))
+            exclude_clones <- unlist(lapply(data[unacceptable], function(x)x@clone))
+            if(length(exclude_clones) > 0){
+                stop(paste("non-standard regions found in these clones,",
+                    "either remove or set partition='single':",paste(exclude_clones, collapse=","),
+                    "\nAllowable regions:",paste(acceptable,collapse=",")))
+            }
         }
 
         if(partition == "cf"){ #make file specifying sequence regions
@@ -564,6 +582,9 @@ writeLineageFile <- function(data, trees=NULL, dir=".", id="N", rep=NULL,
         }
 
         if(!is.null(trees)){
+            if("node.label" %in% names(tree)){
+                tree$node.label <- NULL
+            }
             tree$tip.label[which(tree$tip.label == "Germline")] <- germid
             tree <- ape::multi2di(tree)
             ape::write.tree(tree,file=treefile)
@@ -659,6 +680,11 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
     names <- c(names,"Germline")
     seqs <- strsplit(seqs,split="")
     names(seqs) <- names
+    lengths = unlist(lapply(seqs,function(x)length(x)))
+    if(any(lengths != lengths[1])){
+        stop(paste0("Sequence and/or germline lengths of clone ",
+            clone@clone," are not equal"))
+    }
     if(data_type=="DNA"){
         data <- phangorn::phyDat(ape::as.DNAbin(t(as.matrix(dplyr::bind_rows(seqs)))))
     }else{
@@ -775,7 +801,7 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
             }
             return(fit)
         }
-        tree <- fit$tree
+        tree <- ape::unroot(fit$tree)
         tree$tree_method <- paste("phangorn::optim.pml::",sub_model)
         tree$edge_type <- "genetic_distance"
         nnodes <- length(unique(c(tree$edge[,1],tree$edge[,2])))
@@ -864,6 +890,13 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
     if(!optimize %in% valid_o){
         stop(paste("Invalid optimize specification, must be one of:",valid_o))
     }
+    na_regions <- unlist(lapply(clone, function(x)sum(is.na(x@region)) > 0))
+    if(sum(na_regions) > 0){
+        exclude_clones <- unlist(lapply(clone[na_regions], function(x)x@clone))
+        stop(paste("NA regions found in clones",paste(exclude_clones, collapse=","), 
+            "remove before continuing"))
+    }
+
     os <- strsplit(omega,split=",")[[1]]
     file <- writeLineageFile(clone,trees,dir=temp_path,id=id,rep=id,empty=FALSE,
             partition=partition, ...)
@@ -1287,19 +1320,45 @@ rerootTree <- function(tree, germline, min=0.001, verbose=1){
 #' @export
 getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL, 
     modelfile=NULL, build="pratchet", exec=NULL, igphyml=NULL,
-    fixtrees=FALSE, nproc=1, quiet=0, rm_temp=TRUE,    palette=NULL,
+    fixtrees=FALSE, nproc=1, quiet=0, rm_temp=TRUE, palette=NULL,
     seq=NULL, collapse=FALSE, ...){
 
     if(is.null(exec) && (!build %in% c("pratchet", "pml"))){
         stop("exec must be specified for this build option")
     }
+    if(!is.null(dir)){
+        dir <- path.expand(dir)
+    }
 
     data <- clones$data
+    if(!inherits(data, "list")){
+        data <- list(data)
+    }
+    if(!inherits(data[[1]], "airrClone")){
+        stop("Input data must be a list of airrClone objects")
+    }
+    # make sure all sequences and germlines within a clone are the same length
+    unlist(lapply(data, function(x){
+        if(x@phylo_seq == "hlsequence"){
+            germline <- x@hlgermline
+            seqs <- x@data$hlsequence
+        }else if(x@phylo_seq == "lsequence"){
+            germline <- x@lgermline
+            seqs <- x@data$lsequence
+        }else{
+            germline <- x@germline
+            seqs <- x@data$sequence
+        }
+        if(any(nchar(germline) != nchar(seqs))){
+            stop(paste0("Sequence and/or germline lengths of clone ",
+                x@clone," are not equal."))
+        }
+    }))
     if(fixtrees){
         if(!"trees" %in% names(clones)){
             stop("trees column must be specified if fixtrees=TRUE")
         }
-        if(class(clones$trees[[1]]) != "phylo"){
+        if(!inherits(clones$trees[[1]], "phylo")){
             stop("Trees must be a list of class phylo")
         }
         trees <- clones$trees
@@ -1308,12 +1367,6 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
     }
     if(is.null(id)){
             id <- "sample"
-    }
-    if(class(data) != "list"){
-        data <- list(data)
-    }
-    if(class(data[[1]]) != "airrClone"){
-        stop("Input data must be a list of airrClone objects")
     }
     big <- FALSE
     if(sum(unlist(lapply(data, function(x)nrow(x@data)))) > 10000){
@@ -1337,6 +1390,10 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
         if(is.null(trait)){
             stop("trait must be specified when igphyml-based trait reconstruction")
         }
+        # remove problematic characters from trait values
+        data <- lapply(data,function(x){
+            x@data[[trait]] <- gsub(":|;|,|=| ","-",x@data[[trait]])
+            x})
         if(is.null(modelfile)){
             states <- unique(unlist(lapply(data,function(x)x@data[,trait])))
             modelfile <- makeModelFile(states,
@@ -1352,7 +1409,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
                 datat <- data[[x]]
                 for(id in datat@data$sequence_id){
                     trait_temp <- filter(datat@data,
-                        rlang::sym("sequence_id")==id)[[trait]]
+                        !!rlang::sym("sequence_id")==id)[[trait]]
                     tree$tip.label[tree$tip.label == id] <- 
                     paste0(id,"_",trait_temp)
                 }
@@ -1362,7 +1419,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
             x@data$sequence_id <- paste0(x@data$sequence_id,"_",x@data[[trait]])
             x})
     }
-    if(build=="dnapars" || build=="igphyml" || build=="dnaml"){
+    if(build=="dnapars" || build=="igphyml" || build=="dnaml" || !is.null(igphyml)){
         if(!is.null(dir)){
             if(!dir.exists(dir)){
                 dir.create(dir)
@@ -1375,7 +1432,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
         }
     }
 
-    if(class(data) != "list"){
+    if(!inherits(data, "list")){
         data <- list(data)
     }
     if(!is.null(dir)){
@@ -1461,6 +1518,13 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
     }else{
         mtrees <- trees
     }
+    # Sanity checks
+    match <- unlist(lapply(1:length(data), function(x){
+        data[[x]]@clone == mtrees[[x]]$name
+    }))
+    if(sum(!match) > 0){
+        stop("Clone and tree names not in proper order!")
+    }
     clones$trees <- mtrees
     if(collapse){
         clones <- collapseNodes(clones)
@@ -1495,7 +1559,7 @@ scaleBranches <- function(clones, edge_type="mutations"){
         print(paste("clones is of class",class(clones)))
         stop("clones must be a tibble of airrClone objects!")
     }else{
-        if(class(clones$data[[1]]) != "airrClone"){
+        if(!inherits(clones$data[[1]], "airrClone")){
             print(paste("clones is list of class",class(clones$data[[1]])))
             stop("clones must be a list of airrClone objects!")
         }
@@ -1761,6 +1825,10 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
     }
     states <- unique(cdata[[trait]])
 
+    if(sum(is.na(states) > 0)){
+        stop("NA trait values detected, must be removed before trait analysis.")
+    }
+
     if(length(states) > 1){
         # if at least one of each state is preserved, there is a minimum
         # of length(states)-1 switches, and a minimum of length(states) tips
@@ -1791,7 +1859,6 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
             # if tree provided, drop selected tips
             if(!is.null(tree)){
                 od <- getDivergence(tree)
-                otree <- tree
                 tree <- ape::drop.tip(tree, tip=rm)
                 nd <- getDivergence(tree)
                 maxdiff <- max(nd - od[names(nd)])
@@ -1876,7 +1943,7 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
 #' clones <- formatClones(ExampleAirr, trait="sample_id")
 #' 
 #' igphyml <- "~/apps/igphyml/src/igphyml"
-#' btrees <- findSwitches(clones[1:2], permutations=10, nproc=1,
+#' btrees <- findSwitches(clones[1:2,], permutations=10, nproc=1,
 #'    igphyml=igphyml, trait="sample_id")
 #' plotTrees(btrees$trees[[4]])[[1]]
 #' testPS(btrees$switches)
@@ -1906,13 +1973,22 @@ findSwitches <- function(clones, permutations, trait, igphyml,
     }else if(is.null(rep)){
         print("Keeping tree topology constant. Use fixtrees=FALSE to bootstrap topologies.")
     }
+    if(!is.null(dir)){
+        dir <- path.expand(dir)
+    }
 
     data <- clones$data
+    if(!inherits(data, "list")){
+        data <- list(data)
+    }
+    if(!inherits(data[[1]], "airrClone")){
+        stop("Input data must be a list of airrClone objects")
+    }
     if(fixtrees){
         if(!"trees" %in% names(clones)){
             stop("trees column must be included in input if fixtrees=TRUE (use getTrees first)")
         }
-        if(class(clones$trees[[1]]) != "phylo"){
+        if(!inherits(clones$trees[[1]], "phylo")){
             stop("Trees must be a list of class phylo")
         }
         trees <- clones$trees
@@ -1922,16 +1998,10 @@ findSwitches <- function(clones, permutations, trait, igphyml,
     if(is.null(id)){
             id <- "sample"
     }
-    if(class(data) != "list"){
-        data <- list(data)
-    }
     if(!is.null(dir)){
         if(!dir.exists(dir)){
             dir.create(dir)
         }
-    }
-    if(class(data[[1]]) != "airrClone"){
-        stop("Input data must be a list of airrClone objects")
     }
     big <- FALSE
     if(sum(unlist(lapply(data, function(x)nrow(x@data)))) > 10000){
@@ -1955,11 +2025,18 @@ findSwitches <- function(clones, permutations, trait, igphyml,
         if(is.null(trait)){
             stop("trait must be specified when running igphyml")
         }
+        # remove problematic characters from trait values
+        data <- lapply(data,function(x){
+            x@data[[trait]] <- gsub(":|;|,|=| ","-",x@data[[trait]])
+            x})
         if(is.null(modelfile)){
             states <- unique(unlist(lapply(data,function(x)x@data[,trait])))
             modelfile <- makeModelFile(states,file=file.path(dir,paste0(id,"_modelfile.txt")))
         }else{
             states <- readModelFile(modelfile)
+        }
+        if(sum(is.na(states) > 0)){
+            stop("NA trait values detected, must be removed before trait analysis.")
         }
         # if trees are fixed, add trait value to tree tips
         if(fixtrees){
@@ -2023,12 +2100,14 @@ findSwitches <- function(clones, permutations, trait, igphyml,
                 downsampleClone(clone=data[[x]], 
                 tree=trees[[x]], trait=trait,
                 tip_switch=tip_switch))
-            if(fixtrees){
-                trees <- lapply(rarefied, function(x)x$tree)
-            }
             data <- lapply(rarefied, function(x)x$clone)
             seqs <- unlist(lapply(data, function(x)nrow(x@data)))
-            data <- data[order(seqs, decreasing=TRUE)]
+            index <- order(seqs, decreasing=TRUE)
+            data <- data[index]
+            if(fixtrees){
+                trees <- lapply(rarefied, function(x)x$tree)
+                trees <- trees[index]
+            }
         }
         if(!fixtrees){
             for(i in 1:length(data)){
@@ -2079,6 +2158,14 @@ findSwitches <- function(clones, permutations, trait, igphyml,
                 stop("build specification",build,"not recognized")
             }
         }
+
+        match <- unlist(lapply(1:length(data), function(x){
+            data[[x]]@clone == trees[[x]]$name
+        }))
+        if(sum(!match) > 0){
+            stop("Clone and tree names not in proper order!")
+        }
+        
         results <- list()
         if(!is.null(igphyml)){
             if(is.null(lfile)){    

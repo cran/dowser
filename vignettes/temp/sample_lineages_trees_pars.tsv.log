@@ -1,0 +1,250 @@
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon /tmp/Rtmpu6WzKH/sample-temp-11b8961adc025/sample_modelfile.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 36
+preconfile: 	 /tmp/Rtmpu6WzKH/sample-temp-11b8961adc025/sample_modelfile.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+State IGHA1 at node 0 from sequence GN5SHBT08GRZFK_IGHA1 not found in model.
+
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon /tmp/Rtmpu6WzKH/sample-temp-11b8961adc025/sample_modelfile.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 36
+preconfile: 	 /tmp/Rtmpu6WzKH/sample-temp-11b8961adc025/sample_modelfile.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+State IGHA1 at node 0 from sequence GN5SHBT08GRZFK_IGHA1 not found in model.
+
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 36
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+. 0 Initial/resolved maximum parsimony score: 32 14 3128_GERM
+. 1 Initial/resolved maximum parsimony score: 20 7 3100_GERM
+. 2 Initial/resolved maximum parsimony score: 8 3 3141_GERM
+. 3 Initial/resolved maximum parsimony score: 10 9 3170_GERM
+. 4 Initial/resolved maximum parsimony score: 9 6 3114_GERM
+. 5 Initial/resolved maximum parsimony score: 9 8 3163_GERM
+. 6 Initial/resolved maximum parsimony score: 10 7 3177_GERM
+. 7 Initial/resolved maximum parsimony score: 8 6 3184_GERM
+. 8 Initial/resolved maximum parsimony score: 6 5 3110_GERM
+. 9 Initial/resolved maximum parsimony score: 6 4 3140_GERM
+. 10 Initial/resolved maximum parsimony score: 7 5 3192_GERM
+. 11 Initial/resolved maximum parsimony score: 6 6 3146_GERM
+. 12 Initial/resolved maximum parsimony score: 4 4 3175_GERM
+. 13 Initial/resolved maximum parsimony score: 3 2 3090_GERM
+. 14 Initial/resolved maximum parsimony score: 5 5 3134_GERM
+. 15 Initial/resolved maximum parsimony score: 6 6 3138_GERM
+. 16 Initial/resolved maximum parsimony score: 6 5 3164_GERM
+. 17 Initial/resolved maximum parsimony score: 4 3 3115_GERM
+. 18 Initial/resolved maximum parsimony score: 3 3 3139_GERM
+. 19 Initial/resolved maximum parsimony score: 4 4 3157_GERM
+. 20 Initial/resolved maximum parsimony score: 1 1 2728_GERM
+. 21 Initial/resolved maximum parsimony score: 2 2 3142_GERM
+. 22 Initial/resolved maximum parsimony score: 2 2 3144_GERM
+. 23 Initial/resolved maximum parsimony score: 2 1 5060_GERM
+. 24 Initial/resolved maximum parsimony score: 2 2 353_GERM
+. 25 Initial/resolved maximum parsimony score: 1 1 1123_GERM
+. 26 Initial/resolved maximum parsimony score: 2 2 1438_GERM
+. 27 Initial/resolved maximum parsimony score: 2 2 3088_GERM
+. 28 Initial/resolved maximum parsimony score: 1 1 3095_GERM
+. 29 Initial/resolved maximum parsimony score: 2 2 3103_GERM
+. 30 Initial/resolved maximum parsimony score: 2 2 3113_GERM
+. 31 Initial/resolved maximum parsimony score: 0 0 3168_GERM
+. 32 Initial/resolved maximum parsimony score: 2 2 3822_GERM
+. 33 Initial/resolved maximum parsimony score: 1 1 6985_GERM
+. 34 Initial/resolved maximum parsimony score: 0 0 7433_GERM
+. 35 Initial/resolved maximum parsimony score: 2 1 8365_GERM
+. Time used 0h0m1s
+
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 36
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+. 0 Initial/resolved maximum parsimony score: 33 14 3128_GERM
+. 1 Initial/resolved maximum parsimony score: 18 7 3100_GERM
+. 2 Initial/resolved maximum parsimony score: 7 3 3141_GERM
+. 3 Initial/resolved maximum parsimony score: 10 9 3170_GERM
+. 4 Initial/resolved maximum parsimony score: 8 6 3114_GERM
+. 5 Initial/resolved maximum parsimony score: 9 8 3163_GERM
+. 6 Initial/resolved maximum parsimony score: 9 7 3177_GERM
+. 7 Initial/resolved maximum parsimony score: 7 6 3184_GERM
+. 8 Initial/resolved maximum parsimony score: 6 5 3110_GERM
+. 9 Initial/resolved maximum parsimony score: 6 4 3140_GERM
+. 10 Initial/resolved maximum parsimony score: 7 5 3192_GERM
+. 11 Initial/resolved maximum parsimony score: 6 6 3146_GERM
+. 12 Initial/resolved maximum parsimony score: 4 4 3175_GERM
+. 13 Initial/resolved maximum parsimony score: 3 2 3090_GERM
+. 14 Initial/resolved maximum parsimony score: 5 4 3134_GERM
+. 15 Initial/resolved maximum parsimony score: 6 5 3138_GERM
+. 16 Initial/resolved maximum parsimony score: 6 5 3164_GERM
+. 17 Initial/resolved maximum parsimony score: 4 3 3115_GERM
+. 18 Initial/resolved maximum parsimony score: 3 3 3139_GERM
+. 19 Initial/resolved maximum parsimony score: 4 4 3157_GERM
+. 20 Initial/resolved maximum parsimony score: 1 1 2728_GERM
+. 21 Initial/resolved maximum parsimony score: 2 2 3142_GERM
+. 22 Initial/resolved maximum parsimony score: 2 2 3144_GERM
+. 23 Initial/resolved maximum parsimony score: 2 1 5060_GERM
+. 24 Initial/resolved maximum parsimony score: 2 2 353_GERM
+. 25 Initial/resolved maximum parsimony score: 1 1 1123_GERM
+. 26 Initial/resolved maximum parsimony score: 2 2 1438_GERM
+. 27 Initial/resolved maximum parsimony score: 2 2 3088_GERM
+. 28 Initial/resolved maximum parsimony score: 1 1 3095_GERM
+. 29 Initial/resolved maximum parsimony score: 2 2 3103_GERM
+. 30 Initial/resolved maximum parsimony score: 2 2 3113_GERM
+. 31 Initial/resolved maximum parsimony score: 0 0 3168_GERM
+. 32 Initial/resolved maximum parsimony score: 2 2 3822_GERM
+. 33 Initial/resolved maximum parsimony score: 1 1 6985_GERM
+. 34 Initial/resolved maximum parsimony score: 0 0 7433_GERM
+. 35 Initial/resolved maximum parsimony score: 2 1 8365_GERM
+. Time used 0h0m0s
+
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+COMMAND: /home/kenneth//Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 36
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+. 0 Initial/resolved maximum parsimony score: 33 14 3128_GERM
+. 1 Initial/resolved maximum parsimony score: 15 6 3100_GERM
+. 2 Initial/resolved maximum parsimony score: 5 3 3141_GERM
+. 3 Initial/resolved maximum parsimony score: 10 9 3170_GERM
+. 4 Initial/resolved maximum parsimony score: 7 6 3114_GERM
+. 5 Initial/resolved maximum parsimony score: 9 8 3163_GERM
+. 6 Initial/resolved maximum parsimony score: 11 7 3177_GERM
+. 7 Initial/resolved maximum parsimony score: 8 6 3184_GERM
+. 8 Initial/resolved maximum parsimony score: 5 5 3110_GERM
+. 9 Initial/resolved maximum parsimony score: 7 4 3140_GERM
+. 10 Initial/resolved maximum parsimony score: 5 5 3192_GERM
+. 11 Initial/resolved maximum parsimony score: 6 6 3146_GERM
+. 12 Initial/resolved maximum parsimony score: 4 4 3175_GERM
+. 13 Initial/resolved maximum parsimony score: 3 2 3090_GERM
+. 14 Initial/resolved maximum parsimony score: 5 5 3134_GERM
+. 15 Initial/resolved maximum parsimony score: 6 6 3138_GERM
+. 16 Initial/resolved maximum parsimony score: 6 5 3164_GERM
+. 17 Initial/resolved maximum parsimony score: 4 3 3115_GERM
+. 18 Initial/resolved maximum parsimony score: 3 3 3139_GERM
+. 19 Initial/resolved maximum parsimony score: 4 4 3157_GERM
+. 20 Initial/resolved maximum parsimony score: 1 1 2728_GERM
+. 21 Initial/resolved maximum parsimony score: 1 1 3142_GERM
+. 22 Initial/resolved maximum parsimony score: 2 2 3144_GERM
+. 23 Initial/resolved maximum parsimony score: 2 1 5060_GERM
+. 24 Initial/resolved maximum parsimony score: 2 2 353_GERM
+. 25 Initial/resolved maximum parsimony score: 1 1 1123_GERM
+. 26 Initial/resolved maximum parsimony score: 2 2 1438_GERM
+. 27 Initial/resolved maximum parsimony score: 2 2 3088_GERM
+. 28 Initial/resolved maximum parsimony score: 1 1 3095_GERM
+. 29 Initial/resolved maximum parsimony score: 2 2 3103_GERM
+. 30 Initial/resolved maximum parsimony score: 2 2 3113_GERM
+. 31 Initial/resolved maximum parsimony score: 0 0 3168_GERM
+. 32 Initial/resolved maximum parsimony score: 2 2 3822_GERM
+. 33 Initial/resolved maximum parsimony score: 1 1 6985_GERM
+. 34 Initial/resolved maximum parsimony score: 0 0 7433_GERM
+. 35 Initial/resolved maximum parsimony score: 2 1 8365_GERM
+. Time used 0h0m1s
+
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 34
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+State IGHA1 at node 0 from sequence GN5SHBT08GRZFK_IGHA1 not found in model.
+
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 34
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+State IGHA1 at node 0 from sequence GN5SHBT08GRZFK_IGHA1 not found in model.
+
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 34
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+State IGHA1 at node 0 from sequence GN5SHBT08GRZFK_IGHA1 not found in model.
+
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon isotype_model.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 34
+preconfile: 	 isotype_model.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+State IGHA1 at node 0 from sequence GN5SHBT08GRZFK_IGHA1 not found in model.
+
+COMMAND: /home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/igphyml --repfile temp/sample_lineages_trees_pars.tsv --recon temp/sample_modelfile.txt --threads 1 --polyresolve 2 -m HLP -o n --motifs WRC_2:0 --hotness 0 --run_id recon 
+Trees in repfile: 8
+preconfile: 	 temp/sample_modelfile.txt
+. Loading hotspot tables..
+/home/kenneth/Dropbox/Projects/IgPhyML_development/igphyml/src/motifs/HTABLE_WRC_2
+
+DEFAULT: No partition file(s) specified so impossible to partition omega by FWR/CDRs.
+
+DEFAULT: Running multiple trees on one thread.
+........ Use the '--threads' option to specify more (might speed things up).
+
+. 0 Initial/resolved maximum parsimony score: 1 1 3128_GERM
+. 1 Initial/resolved maximum parsimony score: 1 1 3100_GERM
+. 2 Initial/resolved maximum parsimony score: 1 1 3114_GERM
+. 3 Initial/resolved maximum parsimony score: 1 1 3163_GERM
+. 4 Initial/resolved maximum parsimony score: 1 1 3177_GERM
+. 5 Initial/resolved maximum parsimony score: 1 1 3140_GERM
+. 6 Initial/resolved maximum parsimony score: 2 1 3157_GERM
+. 7 Initial/resolved maximum parsimony score: 1 1 353_GERM
+. Time used 0h0m0s
+
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo

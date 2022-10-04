@@ -1,0 +1,13 @@
+#BEGIN
+2
+
+#STATES
+Nose
+Lung
+
+#CONSTRAINTS
+
+
+#AMBIGUOUS
+GERM Nose
+GERM Lung

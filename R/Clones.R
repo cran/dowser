@@ -194,6 +194,15 @@ function(data, id="sequence_id", seq="sequence_alignment",
         }
         hcd <- dplyr::filter(data,!!rlang::sym(locus)==rlang::sym(heavy))
         altd <- dplyr::filter(data,!!rlang::sym(locus)!=rlang::sym(heavy))
+
+        if(any(hcd[[germ]][1] != hcd[[germ]]) || 
+            any(altd[[germ]][1] != altd[[germ]])){
+            stop(paste0("Germline sequences for clone ",
+                unique(dplyr::pull(data,clone)),
+                " are not identical. All predicted germline sequences ",
+                "must be identical for each locus within a clone. Be sure to use the ",
+                "createGermlines function before formatClones or makeAirrClone."))
+        }
         germline <- alakazam::maskSeqGaps(hcd[[germ]][1], mask_char=mask_char, 
             outer_only=FALSE)
         lgermline <- alakazam::maskSeqGaps(altd[[germ]][1], mask_char=mask_char, 
@@ -201,6 +210,24 @@ function(data, id="sequence_id", seq="sequence_alignment",
         if(pad_end){
              germline <- alakazam::padSeqEnds(germline, pad_char=mask_char, mod3=mod3)
             lgermline <- alakazam::padSeqEnds(lgermline, pad_char=mask_char, mod3=mod3)
+             length <- max(c(nchar(germline), max(nchar(hcd[[seq]]))))
+            llength <- max(c(nchar(lgermline),max(nchar(altd[[seq]]))))
+            if(length > nchar(germline)){
+                warning(paste0(
+                    "Padding germline for clone ",unique(dplyr::pull(data,clone)),
+                    ", may indicate misalignment.",
+                    " Should not happen if using createGermlines."))
+                germline <- alakazam::padSeqEnds(germline, 
+                    pad_char=mask_char, mod3=mod3, len=length)
+            }
+            if(llength > nchar(lgermline)){
+                warning(paste0(
+                    "Padding germline for clone ",unique(dplyr::pull(data,clone)),
+                    ", may indicate misalignment.",
+                    "Should not happen if using createGermlines."))
+                lgermline <- alakazam::padSeqEnds(lgermline, 
+                    pad_char=mask_char, mod3=mod3, len=llength)
+            }
         }
         hlgermline <- paste0(germline,lgermline)
         tmp_df <- hc
@@ -223,6 +250,11 @@ function(data, id="sequence_id", seq="sequence_alignment",
         }else{
             regions <- rep("N", times=nchar(hlgermline))
         }
+        if(length(regions) != nchar(hlgermline)){
+            warning(paste("Excluding clone",unique(dplyr::pull(data,clone)),
+                "due to incomplete region definition."))
+            return(NULL)
+        }
         if(length(chains) != unique(nchar(tmp_df$hlsequence))){
             stop(paste("clone",unique(dplyr::pull(data,clone)),
                 "chains vector not equal to total sequence length!"))
@@ -239,11 +271,27 @@ function(data, id="sequence_id", seq="sequence_alignment",
             tmp_df[[seq]] <- alakazam::padSeqEnds(tmp_df[[seq]], 
                 pad_char=mask_char, mod3=mod3)
         }
+        if(any(data[[germ]][1] != data[[germ]])){
+            stop(paste0("Germline sequences for clone ",
+                unique(dplyr::pull(data,clone)),
+                " are not identical. All predicted germline sequences ",
+                "must be identical within a clone. Be sure to use the ",
+                "createGermlines function before formatClones or makeAirrClone."))
+        }
         germline <- alakazam::maskSeqGaps(data[[germ]][1], 
             mask_char=mask_char, outer_only=FALSE)
         if(pad_end){
             germline <- alakazam::padSeqEnds(germline, 
                 pad_char=mask_char, mod3=mod3)
+            length <- max(c(nchar(germline),max(nchar(tmp_df[[seq]]))))
+            if(length > nchar(germline)){
+                warning(paste0(
+                    "Padding germline for clone ",unique(dplyr::pull(data,clone)),
+                    ", may indicate misalignment.",
+                    " Should not happen if using createGermlines."))
+                germline <- alakazam::padSeqEnds(germline, 
+                    pad_char=mask_char, mod3=mod3, len=length)
+            }
         }
         check <- alakazam::checkColumns(data, c(locus))
         if(check == TRUE){
@@ -330,7 +378,7 @@ function(data, id="sequence_id", seq="sequence_alignment",
         tmp_df2[[id]] <- paste0(tmp_df[[id]],"_DUPLICATE")
         tmp_df <- bind_rows(tmp_df, tmp_df2)
     }
-    
+
     outclone <- new("airrClone", 
         data=as.data.frame(tmp_df),
         clone=as.character(unique(data[[clone]])),
@@ -347,7 +395,6 @@ function(data, id="sequence_id", seq="sequence_alignment",
         region=regions,
         numbers=numbers,
         phylo_seq=phylo_seq)
-    
     outclone
 }
 
@@ -519,6 +566,17 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
         dplyr::group_by(!!rlang::sym(clone)) %>%
         dplyr::do(data=makeAirrClone(.data, seq=seq,
             clone=clone, chain=chain, heavy=heavy, cell=cell, ...))
+
+    # remove NULL clone objects
+    exclude_clones <- unlist(lapply(clones$data,function(x)is.null(x)))
+    if(sum(exclude_clones) > 0){
+        warning(paste("Excluding",sum(exclude_clones),"clones"))
+    }
+    clones <- clones[exclude_clones==F,]
+    
+    if(nrow(clones) == 0){
+        stop("No clones remain after makeAirrClone")
+    }
 
     if(chain == "HL"){
         seq_name <- "hlsequence"
@@ -1061,7 +1119,7 @@ processClones <- function(clones, nproc=1 ,minseq=2, seq){
         print(paste("clones is of class",class(clones)))
         stop("clones must be a tibble of airrClone objects!")
     }else{
-        if(class(clones$data[[1]]) != "airrClone"){
+        if(!inherits(clones$data[[1]], "airrClone")){
             print(paste("clones is list of class",class(clones$data[[1]])))
             stop("clones$data must be a list of airrClone objects!")
         }
@@ -1076,21 +1134,9 @@ processClones <- function(clones, nproc=1 ,minseq=2, seq){
     }
 
     clones$data <- lapply(clones$data,function(x){
-        x@data$sequence_id=    gsub(":","_",x@data$sequence_id);
+        x@data$sequence_id=gsub(":|;|,|=| ","_",x@data$sequence_id);
         x })
-    clones$data <- lapply(clones$data,function(x){
-        x@data$sequence_id=gsub(";","_",x@data$sequence_id);
-        x })
-    clones$data <- lapply(clones$data,function(x){
-        x@data$sequence_id=gsub(",","_",x@data$sequence_id);
-        x })
-    clones$data <- lapply(clones$data,function(x){
-        x@data$sequence_id=gsub("=","_",x@data$sequence_id);
-        x })
-    clones$data <- lapply(clones$data,function(x){
-        x@data$sequence_id=gsub(" ","_",x@data$sequence_id);
-        x })
-
+    
     max <- max(unlist(lapply(clones$data,function(x)max(nchar(x@data$sequence_id)))))
     if(max > 1000){
         wc <- which.max(unlist(lapply(clones$data,function(x)

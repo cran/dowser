@@ -111,7 +111,7 @@ condenseTrees <- function(trees, states, palette){
 colorTrees <- function(trees, palette, ambig="blend"){
     ntrees <- list()
     if(ambig == "grey"){
-        palette <- c(palette,"ambig"="#808080")
+        palette <- c(palette,"Ambiguous"="#808080")
     }
     for(n in 1:length(trees)){
         nt <- trees[[n]]
@@ -119,11 +119,11 @@ colorTrees <- function(trees, palette, ambig="blend"){
         if(ambig == "blend"){
             cv <- unlist(lapply(combs, function(x)combineColors(x, palette)))
         }else if(ambig == "grey"){
-            combs[unlist(lapply(combs,function(x)length(x) > 1))] <- "ambig"
+            combs[unlist(lapply(combs,function(x)length(x) > 1))] <- "Ambiguous"
             cv <- unlist(lapply(combs, function(x)combineColors(x, palette)))
             nt$state <- unlist(combs)
         }else{
-            stop("ambig parameter not specified")
+            stop("ambig parameter must be either 'blend' or 'grey'")
         }
         nt$node.color <- cv
         ntrees[[n]] <- nt
@@ -142,7 +142,9 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #' @param    tipsize      size of tip shape objects
 #' @param    scale        width of branch length scale bar
 #' @param    node_palette color palette for nodes
-#' @param    tip_palette  color palette for tips
+#' @param    tip_palette  color palette for tips. Can supply a named vector
+#'                        for all tip states, or a palette named passed to
+#'                        ggplot2::scale_color_brewer 
 #' @param    common_scale strecth plots so branches are on same scale?
 #'                        determined by sequence with highest divergence
 #' @param    layout       rectangular or circular tree layout?
@@ -151,6 +153,7 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #' @param    title        use clone id as title?
 #' @param    labelsize    text size
 #' @param    base         recursion base case (don't edit)
+#' @param    ambig        How to color ambiguous node reconstructions? (blend or grey)
 #'
 #' @return   a grob containing a tree plotted by \code{ggtree}.
 #'
@@ -170,7 +173,7 @@ colorTrees <- function(trees, palette, ambig="blend"){
 plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL, 
     scale=0.01, node_palette="Dark2", tip_palette=node_palette, base=FALSE,
     layout="rectangular", node_nums=FALSE, tip_nums=FALSE, title=TRUE,
-    labelsize=NULL, common_scale=FALSE){
+    labelsize=NULL, common_scale=FALSE, ambig="blend"){
 
     tiptype = "character"
     if(!base){
@@ -182,12 +185,12 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
             if(is.numeric(tipstates)){
                 stop("Can't currently plot numeric tip values and node values")
             }
-            tipstates = c(tipstates,"Germline")
-            nodestates <- unique(unlist(lapply(trees$trees,function(x)
+            tipstates = c(sort(tipstates),"Germline")
+            nodestates <- sort(unique(unlist(lapply(trees$trees,function(x)
                     unique(unlist(strsplit(x$state,split=",")))
-                    )))
+                    ))))
             combpalette <- getPalette(c(nodestates,tipstates),node_palette)
-            trees$trees <- colorTrees(trees$trees,palette=combpalette)
+            trees$trees <- colorTrees(trees$trees,palette=combpalette,ambig=ambig)
             nodestates <- unlist(lapply(trees$trees,function(x){
                 colors <- x$node.color
                 names(colors) <- x$state
@@ -204,7 +207,7 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
                     tiptype <- "numeric"
                     cols <- range(tipstates)
                 }else{
-                    tipstates = c(tipstates,"Germline")
+                    tipstates = c(sort(tipstates),"Germline")
                     if(is.null(names(tip_palette))){
                         tip_palette <- getPalette(tipstates,tip_palette)
                         tip_palette <- tip_palette[!is.na(names(tip_palette))]
@@ -223,12 +226,12 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
                     nodestates <- unique(unlist(lapply(trees$trees,function(x)
                         unique(unlist(strsplit(x$state,split=",")))
                         )))
-                    statepalette <- getPalette(nodestates,node_palette)
+                    statepalette <- getPalette(sort(nodestates),node_palette)
                     statepalette <- statepalette[!is.na(names(statepalette))]
                 }else{
                     statepalette <- node_palette
                 }
-                trees$trees <- colorTrees(trees$trees,palette=statepalette)
+                trees$trees <- colorTrees(trees$trees,palette=statepalette, ambig=ambig)
                 
                 nodestates <- unlist(lapply(trees$trees,function(x){
                     colors <- x$node.color
@@ -247,7 +250,7 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
         ps <- lapply(1:nrow(trees),function(x)plotTrees(trees[x,],
             nodes=nodes,tips=tips,tipsize=tipsize,scale=scale,node_palette=node_palette,
             tip_palette=tip_palette,base=TRUE,layout=layout,node_nums=node_nums,
-            tip_nums=tip_nums,title=title,labelsize=labelsize))
+            tip_nums=tip_nums,title=title,labelsize=labelsize, ambig=ambig))
         if(!is.null(tips) || nodes){
             ps  <- lapply(ps,function(x){
                     x <- x + theme(legend.position="right",

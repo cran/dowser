@@ -25,6 +25,7 @@ fontsize: 11pt
 vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteIndexEntry{Reconstruct Clonal Germlines}
+  %\VignetteEncoding{UTF-8}
   %\usepackage[utf8]{inputenc}
 ---
 
@@ -61,7 +62,7 @@ ls germlines
 
 To reconstruct clonal germlines, read in the IMGT-gapped sequence directory and supply it, along with your data, to the createGermlines function.
 
-Input data *must* be from one locus, such as only IGH.
+Input data can be from multiple loci (this is different from older Dowser versions). However, the input reference sequences must be from one organism, such as human.
 
 ```{r, eval=FALSE, warning=FALSE, message=FALSE}
 library(dowser)

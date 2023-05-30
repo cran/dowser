@@ -20,13 +20,14 @@ buildIgphyml(
   optimize = "lr",
   motifs = "FCH",
   hotness = "e,e,e,e,e,e",
+  rates = NULL,
   asrc = 0.95,
   splitfreqs = FALSE,
   ...
 )
 }
 \arguments{
-\item{clone}{\code{airrClone} object}
+\item{clone}{list of \code{airrClone} objects}
 
 \item{igphyml}{igphyml executable}
 
@@ -55,6 +56,9 @@ buildIgphyml(
 \item{motifs}{motifs to consider (see IgPhyML docs)}
 
 \item{hotness}{hotness parameters to estimate (see IgPhyML docs)}
+
+\item{rates}{comma delimited list showing which omega-defined partitions
+get a separate rate (e.g. omega=e,e rates=0,1).}
 
 \item{asrc}{Intermediate sequence cutoff probability}
 

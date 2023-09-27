@@ -8,7 +8,7 @@ formatClones(
   data,
   seq = "sequence_alignment",
   clone = "clone_id",
-  subclone = "subclone_id",
+  subgroup = "clone_subgroup",
   id = "sequence_id",
   germ = "germline_alignment_d_mask",
   v_call = "v_call",
@@ -50,7 +50,7 @@ sequences in this column must be multiple aligned.}
 \item{clone}{name of the column containing the identifier for the clone. All 
 entries in this column should be identical.}
 
-\item{subclone}{name of the column containing the identifier for the subclone.}
+\item{subgroup}{name of the column containing the identifier for the subgroup.}
 
 \item{id}{name of the column containing sequence identifiers.}
 
@@ -120,11 +120,11 @@ sequences silently.}
 
 \item{filterStop}{only use sequences that do not contain an in-frame stop codon}
 
-\item{minseq}{minimum numbner of sequences per clone}
+\item{minseq}{minimum number of sequences per clone}
 
-\item{split_light}{split or lump subclones? See \code{getSubclones}.}
+\item{split_light}{split or lump subgroups? See \code{resolveLightChains}.}
 
-\item{majoronly}{only return largest subclone and sequences without light chains}
+\item{majoronly}{only return largest subgroup and sequences without light chains}
 
 \item{columns}{additional data columns to include in output}
 }
@@ -136,7 +136,7 @@ A tibble of \link{airrClone} objects containing modified clones.
 Change-O style columns as input and masks gap positions, masks ragged ends, 
 removes duplicates sequences, and merges annotations associated with duplicate
 sequences. If specified, it will un-merge duplicate sequences with different 
-values specified in the \code{trait} option. It returns a list of \code{airrClone}
+values specified in the \code{traits} option. It returns a list of \code{airrClone}
 objects ordered by number of sequences which serve as input for lineage reconstruction.
 }
 \details{
@@ -147,7 +147,7 @@ This function is a wrapper for \link{makeAirrClone}. Also removes whitespace,
 data(ExampleAirr)
 # Select two clones, for demonstration purpose
 sel <- c("3170", "3184")
-clones <- formatClones(ExampleAirr[ExampleAirr$clone_id \%in\% sel,],trait="sample_id")
+clones <- formatClones(ExampleAirr[ExampleAirr$clone_id \%in\% sel,],traits="sample_id")
 }
 \seealso{
 Executes in order \link{makeAirrClone}. Returns a tibble of 

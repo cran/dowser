@@ -85,6 +85,19 @@ treeplot = plots[[1]] + geom_tiplab() +
 
 treeplot
 
+## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+library(ggtree)
+
+plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
+
+#Plot the largest tree
+treeplot = plots[[1]] + geom_tiplab(aes(label=c_call), offset = 0.02) + 
+    geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
+        linetype="dashed",color="grey") + xlim(0,0.3) +
+    ggtitle("Example B cell tree")
+
+treeplot
+
 ## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
 #  plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
 #  

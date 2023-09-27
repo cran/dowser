@@ -1,3 +1,8 @@
+#' @keywords internal
+#' @aliases dowser-package
+"_PACKAGE"
+
+
 # Dowser package documentation and import directives
 #'
 #' The dowser package
@@ -28,7 +33,10 @@
 #' @importFrom  tidyselect  all_of
 #' @importFrom  gridExtra   grid.arrange
 #' @importFrom  stringr     str_count    
-#' @importFrom  alakazam    makeChangeoClone DNA_IUPAC
+#' @importFrom  alakazam    checkColumns maskSeqGaps padSeqEnds 
+#'                          collapseDuplicates getGene translateDNA seqDist
+#'                          getAllele buildPhylipLineage graphToPhylo DNA_IUPAC
+#'                          makeTempDir
 #' @importFrom  phylotate   read_annotated
 #' @importFrom  ape         read.tree di2multi reorder.phylo root ladderize subtrees
 #'                          as.AAbin as.DNAbin getMRCA dist.nodes multi2di extract.clade
@@ -40,7 +48,7 @@
 #'                          group_by ungroup
 #'                          filter slice select 
 #'                          mutate mutate_at 
-#'                          one_of if_else
+#'                          one_of
 #'                          right_join rowwise
 #'                          summarize summarize_at
 #'                          transmute rename

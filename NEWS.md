@@ -1,3 +1,21 @@
+Version 2.0.0: September 8, 2023
+-------------------------------------------------------------------------------
+
++ Added paired heavy and light chain single cell integration into formatClones
++ Added lone light chain integration into formatClones
++ Added resolveLightChains, a function that assigned clones 'clonal_subgroups'
++ Added a vignette about how to create H+L trees
+
+Version 1.2.0: May 30, 2023
+-------------------------------------------------------------------------------
+
++ Fixed bugs in createGermlines, plotTrees, and getTrees
++ Added getBootstraps, a bootstrapping function separate from findSwitches
++ Added RAxML build option
++ Added partitioned IgPhyML and RAxML build options (experimental)
++ Added calcRF for RF distance calculations.
+
+
 Version 1.1.0:  October 4, 2022
 -------------------------------------------------------------------------------
 

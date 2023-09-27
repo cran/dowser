@@ -961,3 +961,75 @@ correlationTest = function(clones, permutations=1000, minlength=0.001,
     }
     clones
 }
+
+#' Finds the Robinson-Fould's cluster distance between phylogenies. 
+#' 
+#' \code{calcRF} Calculates the RF distance between two phylogenetic trees with 
+#'               the same tips and tip labels.
+#' @param tree_1         A \code{phylo} object
+#' @param tree_2         A \code{phylo} object
+#' @param nproc          Number of cores to use for calculations.
+#'
+#' @return   The RF cluster value for the two input trees.
+#'  
+#' @export
+calcRF <- function(tree_1, tree_2, nproc = 1){
+  tip_amount_check <- length(tree_1$tip.label) == length(tree_2$tip.label)
+  if(!tip_amount_check){
+    stop("trees do not have the same number of tips")
+  }
+  tip_check <- dplyr::setdiff(tree_1$tip.label, tree_2$tip.label)
+  # change this 
+  if(!identical(tip_check, character(0))){
+    stop("tree tip labels are not identical")
+  }
+  tree_1_df <- splits_func(list(tree_1),1)
+  tree_2_df <- splits_func(list(tree_2), 1)
+  
+  total_mismatches <- unlist(parallel::mclapply(1:nrow(tree_1_df), function(x){
+    tree_1_sub <- tree_1_df$found[[x]]
+    mismatch_vector <- unlist(lapply(1:nrow(tree_2_df), function(y){
+      mismatches_1 <- dplyr::setdiff(tree_2_df$found[[y]], tree_1_sub)
+      mismatches_2 <- dplyr::setdiff(tree_1_sub, tree_2_df$found[[y]])
+      if(identical(mismatches_1, character(0)) & identical(mismatches_2, character(0))){
+        value <- "match"      
+      } else{
+        value <- "mismatch"
+      }
+      return(value)
+    }))
+    if("match" %in% mismatch_vector){
+      tobind <- 0
+    } else{
+      tobind <- 1
+    }
+    return(tobind)
+  }, mc.cores = nproc))
+  total_mismatches <- sum(total_mismatches)
+
+  clone_mismatches <- unlist(parallel::mclapply(1:nrow(tree_2_df), function(x){
+    tree_2_sub <- tree_2_df$found[[x]]
+    mismatch_vector <- unlist(lapply(1:nrow(tree_1_df), function(y){
+      mismatches_1 <- setdiff(tree_1_df$found[[y]], tree_2_sub)
+      mismatches_2 <- setdiff(tree_2_sub, tree_1_df$found[[y]])
+      if(identical(mismatches_1, character(0)) & identical(mismatches_2, character(0))){
+        value <- "match"
+      } else{
+        value <- "mismatch"
+      }
+      return(value)
+    }))
+    if("match" %in% mismatch_vector){
+      tobind <- 0
+    } else{
+      tobind <- 1
+    }
+    return(tobind)
+  }, mc.cores = nproc))
+  clone_mismatches <- sum(clone_mismatches)
+  
+  all_mismatches <- total_mismatches + clone_mismatches
+  
+  return(all_mismatches)
+}
+

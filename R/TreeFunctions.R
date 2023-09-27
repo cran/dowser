@@ -238,10 +238,7 @@ bootstrapClones  <- function(clone, reps=100, partition="locus", by_codon = TRUE
       }
     }
     if(clone@phylo_seq == "sequence"){
-      #KBH this check needs to be done for all sequence types, currently only done on heavy chains.
-      #Also it's not actually checking the sequence after bootstrapping - clone_copy@data$sequence doesn't
-      #get the bootstraped sequences until immediately after this block
-      #should also only be run if bootstrapping by codon
+
       clone_copy@data$sequence <- unlist(lapply(sarray,
                                                 function(x)paste(x[sindex],collapse="")))
       clone_copy@germline <- paste(garray[sindex],collapse="")
@@ -845,10 +842,6 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
 buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="seq", 
                      asr_thresh=0.05, tree=NULL, data_type="DNA", optNni=TRUE, optQ=TRUE, 
                      verbose=FALSE, resolve_random=TRUE, quiet=0, rep=NULL){
-  #output_name <- paste0("pml_output_rep_", rep, "_clone_", clone@clone, ".txt")
-  #sink(file=output_name)
-  #print(paste0("PML tree ", rep, " ", clone@clone, " started"))
-  #stop(file_conn)
   seqs <- clone@data[[seq]]
   names <- clone@data$sequence_id
   if(length(seqs) < 2){
@@ -865,24 +858,16 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
   names <- c(names,"Germline")
   seqs <- strsplit(seqs,split="")
   names(seqs) <- names
-  #print("seqs, names, and germline created")
-  #print("phyDat started")
   if(data_type=="DNA"){
-    #print("starting phangorn::phyDat(ape::as.DNAbin(t(as.matrix(dplyr::bind_rows(seqs)))))")
     data <- phangorn::phyDat(ape::as.DNAbin(t(as.matrix(dplyr::bind_rows(seqs)))))
   }else{
-    #print('starting phangorn::phyDat(ape::as.AAbin(t(as.matrix(dplyr::bind_rows( seqs)))),
-    #                       type="AA")')
     data <- phangorn::phyDat(ape::as.AAbin(t(as.matrix(dplyr::bind_rows( seqs)))),
                              type="AA")
-    #print(sub_model)
     if(sub_model == "GTR"){
       warning("GTR model shouldn't be used for AA.")
     }
   }
-  #print('phyDat completed')
   if(is.null(tree)){
-    #print("starting the options for if tree is null")
     dm  <- phangorn::dist.ml(data)
     treeNJ  <- ape::multi2di(phangorn::NJ(dm), random=resolve_random)
     treeNJ$edge.length[treeNJ$edge.length < 0] <- 0 #change negative edge lengths to zero
@@ -890,16 +875,12 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
     fit <- tryCatch(phangorn::optim.pml(pml, model=sub_model, optNni=optNni, optQ=optQ,
                                         optGamma=gamma, rearrangement="NNI",control=phangorn::pml.control(epsilon=1e-08,
                                         maxit=10, trace=0)), error=function(e)e)
-    #print("primary fit completed")
-    #print("checking for errors")
     if("error" %in% class(fit)){
       if(verbose){
         print(fit)
       }
-      #print("fit completed")
       return(fit)
     }
-    #print("unrooting tree")
     #tree <- ape::unroot(ape::multi2di(fit$tree)) #CGJ 4/5/23
     # this assumes we can change tree object without affecting ASR
     fit$tree <- ape::unroot(ape::multi2di(fit$tree))
@@ -908,25 +889,19 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
     if(!ape::is.binary(tree)){
       stop(paste("Tree may not be full resolved at", clone@clone))
     }
-    #print("adding tree method and edge type")
     tree$tree_method <- paste("phangorn::optim.pml::",sub_model)
     tree$edge_type <- "genetic_distance"
-    #print("creating nnodes")
     nnodes <- length(unique(c(tree$edge[,1],tree$edge[,2])))
-    #print("creating nodes")
     tree$nodes <- rep(list(sequence=NULL),times=nnodes)
   }
-  #print("adding name and seq")
   tree$name <- clone@clone
   tree$seq <- seq
 
   if(asr != "none" && data_type=="DNA"){
-    #print("ancestral pml started")
     seqs_ml <- phangorn::ancestral.pml(fit,
                                        type="marginal",return="prob")
     ASR <- list()
     for(i in 1:max(tree$edge)){
-      # KBH
       patterns <- t(subset(seqs_ml, i)[[1]])
       pat <- patterns[,attr(seqs_ml,"index")]
       if(asr == "seq"){
@@ -944,19 +919,12 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
         ASR[[as.character(i)]] <- pat
       }
     }
-    #print("ASR completed")
-    #print("starting tree$nodes")
-    #tree$sequences <- ASR
     tree$nodes <- lapply(1:length(tree$nodes),function(x){
       tree$nodes[[x]]$sequence <- ASR[[x]]
       tree$nodes[[x]]
     })
   }
-  #print("rerooting tree")
   tree <- rerootTree(tree,"Germline",verbose=0)
-  #print("PML tree done")
-  #sink()
-  #closeAllConnections()
   return(tree)
 }
 
@@ -986,14 +954,14 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
 #' @param    splitfreqs Calculate codon frequencies on each partition separately?
 #' @param    ...        Additional arguments (not currently used)
 #'
-#' @details Partition options:
+#' @details Partition options in rate order:
 #' \itemize{
 #'   \item  \code{single}: 1 omega for whole sequence
 #'   \item  \code{cf}: 2 omegas, 1 for all CDRs and 1 for all FWRs
 #'   \item  \code{hl}: 2 omegas, 1 for heavy and 1 for light chain
-#'   \item  \code{hlf}: 3 omegas, 1 for all CDRs, 2 for heavy/light FWRs
-#'   \item  \code{hlc}: 3 omegas, 1 for all FWRs, 2 for heavy/light CDRs
-#'   \item  \code{hlcf}: 4 omegas, 1 for each heavy/light CDR/FWR combination
+#'   \item  \code{hlf}: 3 omegas, 1 for heavy FWR, 1 for all CDRs, and 1 for light FWRs
+#'   \item  \code{hlc}: 3 omegas, 1 for all FWRs, 1 for heavy CDRs, and 1 for light CDRs
+#'   \item  \code{hlcf}: 4 omegas, 1 for each heavy FWR, 1 for heavy CDR, 1 for light FWR, and 1 for light CDR
 #' }
 #'
 #' @return  \code{phylo} object created by igphyml with nodes attribute
@@ -1002,11 +970,10 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
 buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL, 
                          id=NULL, rseed=NULL, quiet=0, rm_files=TRUE, rm_dir=NULL, 
                          partition=c("single", "cf", "hl", "hlf", "hlc", "hlcf"),
-                         omega="e", optimize="lr", motifs="FCH", hotness="e,e,e,e,e,e", 
+                         omega=NULL, optimize="lr", motifs="FCH", hotness="e,e,e,e,e,e", 
                          rates=NULL, asrc=0.95, splitfreqs=FALSE, ...){
   
   warning("Dowser igphyml doesn't mask split codons!")
-  
   partition <- match.arg(partition)
   
   valid_o <- c("r","lr","tlr")
@@ -1020,20 +987,44 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
                "remove before continuing"))
   }
   
-  os <- strsplit(omega,split=",")[[1]]
+  if(!is.null(omega)){
+    os <- strsplit(omega,split=",")[[1]]
+  } else {
+    os <- NULL
+  }
   file <- writeLineageFile(clone,trees,dir=temp_path,id=id,rep=id,empty=FALSE,
                            partition=partition, ...)
   if(length(os) != 2 && (partition == "cf" | partition == "hl")){
     warning("Omega parameter incompatible with partition, setting to e,e")
     omega = "e,e"
+    os <- strsplit(omega,split=",")[[1]]
+    if(partition == "hl" && is.null(rates)){
+      rates = "0,1"
+    }
   }
   if(length(os) != 3 && (partition == "hlc" | partition == "hlf")){
     warning("Omega parameter incompatible with partition, setting to e,e,e")
     omega = "e,e,e"
+    os <- strsplit(omega,split=",")[[1]]
   }
   if(length(os) != 4 && (partition == "hlcf")){
     warning("Omega parameter incompatible with partition, setting to e,e,e,e")
     omega = "e,e,e,e"
+    os <- strsplit(omega,split=",")[[1]]
+    if(is.null(rates)){
+      rates = "0,0,1,1"
+    }
+  }
+  if(length(os) != 1 && (partition == "single")){
+    warning("Omega parameter incompatible with partition, setting to e")
+    omega = "e"
+    os <- strsplit(omega,split=",")[[1]]
+    #stop("Specified partition model not compatible with multiple omegas or rates")
+  }
+  if (!is.null(rates)) {
+    if (length(os) != length(strsplit(rates, ",")[[1]])) {
+      stop("Number of rates needs to equal the number of omegas")
+    }
   }
   igphyml <- path.expand(igphyml)
   if(file.access(igphyml, mode=1) == -1) {
@@ -1245,13 +1236,12 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
 #' 
 #' @param    clone      list of \code{airrClone} objects
 #' @param    seq        the phylo_seq option does this clone uses. Possible options are "sequence", "hlsequence", or "lsequence"
-#' @param    exec       RAxML executable
+#' @param    exec       RAxML-ng executable
 #' @param    model      The DNA model to be used. GTR is the default.
-#' @param    partition  A logical vector that indicates if you want to partition the data based on the heavy and light chains.
+#' @param    partition  A parameter that determines how branches are reported when partitioning. Options include NULL (default), 
+#'                      scaled, unlinked, and linked
 #' @param    rseed      The random seed used for the parsimony inferences. This allows you to reproduce your results.
 #' @param    name       specifies the name of the output file
-#' @param    brln       A parameter that determines how branches are reported when partitioning. Options include scaled (default), 
-#'                      unlinked, and linked
 #' @param    starting_tree specifies a user starting tree file name and path in Newick format
 #' @param    from_getTrees A logical that indicates if the desired starting tree is from getTrees and not a newick file
 #' @param    rm_files   remove temporary files?
@@ -1264,10 +1254,9 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
 #' @return  \code{phylo} object created by RAxML-ng with nodes attribute
 #'          containing reconstructed sequences.
 #' @export
-buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition = FALSE, 
-                       rseed = 28, name = "run", brln = "scaled", starting_tree = NULL, 
+buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition = NULL, 
+                       rseed = 28, name = "run", starting_tree = NULL, 
                        from_getTrees = FALSE, rm_files = TRUE, asr = TRUE, rep = 1, dir = NULL, ...){
-  # add in option that lets the RAxML threading exec work -- would be here and downstream
   exec <- path.expand(exec)
   if(file.access(exec, mode=1) == -1) {
     stop("The file ", exec, " cannot be executed.")
@@ -1279,6 +1268,11 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
   version_test <- grepl("-ng", exec)
   if(!version_test){
     stop("Please use raxml-ng, not an older version of RAxML.")
+  }
+  if(!is.null(partition)){
+    if(seq != "hlsequence"){
+      stop("RAxML partition models are currently only supported for heavy and light chain partitions. Please include clones that contain both.")
+    }
   }
   if(!is.null(dir)){
     dir <- path.expand(dir)
@@ -1312,7 +1306,6 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
   if(length(clone_seqids) != length(clone_seqs)){
     stop("The number of sequences does not match the number of sequence ids.")
   }
-  # a just in case check 
   if(!is.numeric(rseed)){
     stop("The random seed needs to be a numeric value")
   }
@@ -1329,7 +1322,6 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
   closeAllConnections()
   input_data <- file.path(dir, paste0(name, "_input_data.phy"))
   
-  # make the command 
   command <- paste("--model", model, "--seed", rseed, "-msa", 
                    input_data, "-prefix", paste0(dir,"/", name), "--threads 1",
                    "--force msa")
@@ -1340,7 +1332,7 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     }
     command <- paste(command, "--tree", starting_tree)
   }
-  if(partition){
+  if(!is.null(partition)){
     heavy_index <- clone@locus == "IGH"
     end_heavy <- paste(strsplit(clone_seqs,split="")[[1]][heavy_index], collapse = "")
     fileConn<-file(file.path(dir, paste0(name, "_partition.txt")))
@@ -1352,12 +1344,11 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     closeAllConnections()
     old_command <- strsplit(command, "--seed")[[1]][2]
     new_model <- paste("--model", file.path(dir, paste0(name, "_partition.txt")), "--seed")
-    command <- paste0(new_model, old_command, " --brlen ", brln)
+    command <- paste0(new_model, old_command, " --brlen ", partition)
   }
   
   params <- list(exec, command, stdout=TRUE, stderr=TRUE)
   
-  # run raxml
   status <- tryCatch(do.call(base::system2, params), error=function(e){
     print(paste("RAxML error, trying again: ",e));
     return(e)
@@ -1366,48 +1357,15 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     return(w)
   })
   
+  if(length(status) == 0){
+    stop("RAxML was not run. Check input data.")
+  }
+  
   # check if there is a reduced file -- if so the file creation step failed
   if(file.exists(file.path(dir,paste0(name, "_input_data.phy.reduced")))){
     stop("Preprocessing broke. Not all noninformative sites by RAxML's definition were removed.")
   }
   
-  ### CGJ 3/13/23
-  # rescale the branches if partitioning is done
-  if(partition){
-    tree <- ape::read.tree(file.path(dir, paste0(name, ".raxml.bestTree")))
-    if(brln == "scaled"){
-      model_file <- readLines(file.path(dir, paste0(name, ".raxml.bestModel")))
-      scaler <- strsplit(model_file, "BU")
-      scaler_heavy <- scaler[[1]][2]
-      scaler_heavy <- strsplit(scaler_heavy, ",")[[1]][1]
-      scaler_heavy <- as.numeric(gsub("\\{", "", gsub("\\}", "", scaler_heavy)))
-      scaler_light <- scaler[[2]][2]
-      scaler_light <- strsplit(scaler_light, ",")[[1]][1]
-      scaler_light <- as.numeric(gsub("\\{", "", gsub("\\}", "", scaler_light)))
-      heavy_sites <- as.numeric(table(clone@locus == "IGH")[[1]])
-      light_sites <- as.numeric(table(clone@locus != "IGH")[[1]])
-      #tree$edge.length <- ((tree$edge.length*scaler_heavy*heavy_sites) + 
-      #                       (tree$edge.length*scaler_light*light_sites))/(heavy_sites + light_sites)
-      ape::write.tree(tree, file.path(dir, paste0(name, ".raxml.bestTree")))
-    }else if(brln == "unlinked"){
-      # read in the data 
-      unlinked_trees <- ape::read.tree(file.path(dir, paste0(name, ".raxml.bestPartitionTrees")))
-      check_partitions <- phangorn::RF.dist(unlinked_trees[[1]], unlinked_trees[[2]])
-      check_best <- phangorn::RF.dist(unlinked_trees[[1]], tree)
-      if(sum(check_partitions, check_best) == 0){
-        # do the edge calc
-        heavy_sites <- as.numeric(table(clone@locus == "IGH")[[1]])
-        light_sites <- as.numeric(table(clone@locus != "IGH")[[1]])
-        new_value <- ((heavy_sites*unlinked_trees[[1]]$edge.length) + 
-                        (light_sites*unlinked_trees[[2]]$edge.length))/
-          sum(heavy_sites, light_sites)
-        tree$edge.length <- new_value
-      } else{
-        stop("A more complicated approach is needed")
-      }
-      ape::write.tree(tree, file.path(dir, paste0(name, ".raxml.bestTree")))
-    }
-  }
   if(asr){
     tree <- rerootTree(ape::unroot(ape::read.tree(file.path(dir,paste0(name, ".raxml.bestTree")))), "Germline", verbose = 0)
     starting_tree <- file.path(dir, paste0(name, "_rerooted.tree"))
@@ -1415,10 +1373,10 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     command <- paste("--model", model, "--seed", rseed, "-msa", 
                      input_data, "-prefix", paste0(dir,"/", name, "_asr"), "--threads 1",
                      "--force msa --tree", starting_tree, "--ancestral")
-    if(partition){
+    if(!is.null(partition)){
       old_command <- strsplit(command, "--seed")[[1]][2]
       new_model <- paste("--model", file.path(dir, paste0(name, "_partition.txt")), "--seed")
-      command <- paste0(new_model, old_command, " --brlen ", brln)
+      command <- paste0(new_model, old_command, " --brlen ", partition)
     }
     
     params <- list(exec, command, stdout=TRUE, stderr=TRUE)
@@ -1439,51 +1397,16 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     
     # use the asr_tree from here on out
     tree <- asr_tree
-    ### CGJ 3/13/23
-    # rescale the branches if partitioning is done
-    if(partition){
-      if(brln == "scaled"){
-        model_file <- readLines(file.path(dir, paste0(name, ".raxml.bestModel")))
-        scaler <- strsplit(model_file, "BU")
-        scaler_heavy <- scaler[[1]][2]
-        scaler_heavy <- strsplit(scaler_heavy, ",")[[1]][1]
-        scaler_heavy <- as.numeric(gsub("\\{", "", gsub("\\}", "", scaler_heavy)))
-        scaler_light <- scaler[[2]][2]
-        scaler_light <- strsplit(scaler_light, ",")[[1]][1]
-        scaler_light <- as.numeric(gsub("\\{", "", gsub("\\}", "", scaler_light)))
-        heavy_sites <- as.numeric(table(clone@locus == "IGH")[[1]])
-        light_sites <- as.numeric(table(clone@locus != "IGH")[[1]])
-        #tree$edge.length <- ((tree$edge.length*scaler_heavy*heavy_sites) + 
-        #                       (tree$edge.length*scaler_light*light_sites))/(heavy_sites + light_sites)
-      }else if(brln == "unlinked"){
-        unlinked_trees <- ape::read.tree(file.path(dir, paste0(name, ".raxml.bestPartitionTrees")))
-        check_partitions <- phangorn::RF.dist(unlinked_trees[[1]], unlinked_trees[[2]])
-        check_best <- phangorn::RF.dist(unlinked_trees[[1]], tree)
-        if(sum(check_partitions, check_best) == 0){
-          # do the edge calc
-          heavy_sites <- as.numeric(table(clone@locus == "IGH")[[1]])
-          light_sites <- as.numeric(table(clone@locus != "IGH")[[1]])
-          new_value <- ((heavy_sites*unlinked_trees[[1]]$edge.length) + 
-                          (light_sites*unlinked_trees[[2]]$edge.length))/
-            sum(heavy_sites, light_sites)
-         # tree$edge.length <- new_value
-        } else{
-          stop("A more complicated approach is needed")
-        }
-        #ape::write.tree(tree, file.path(dir, paste0(name, ".raxml.bestTree")))
-      }
-    }
-    #update the tree
     results <- list()
     results$clone <- clone@clone
-    results$nseq <- length(clone@data[[seq]]) # make this data[[seq]]
-    results$nsite <- nchar(clone@data[[seq]][1]) # $data[[seq]][1]
-    results$tree_length <- sum(tree$edge.length) # test -> tree
-    if(brln == "unlinked"){
+    results$nseq <- length(clone@data[[seq]]) 
+    results$nsite <- nchar(clone@data[[seq]][1]) 
+    results$tree_length <- sum(tree$edge.length)
+    if(!is.null(partition) && partition == "unlinked"){
       p_trees <- ape::read.tree(file.path(dir, paste0(name, ".raxml.bestPartitionTrees")))
       p1 <- sum(p_trees[[1]]$edge.length)
       p2 <- sum(p_trees[[2]]$edge.length)
-      tree_length <- c(paste("ASR Tree:", results$tree_length), paste("Heavy Chain Tree:", p1),
+      tree_length <- c(paste("Best Tree:", results$tree_length), paste("Heavy Chain Tree:", p1),
                        paste("Light Chain Tree:", p2))
       results$tree_length <- tree_length
     }
@@ -1570,7 +1493,7 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     results$tree_length <- sum(tree$edge.length) 
     nnodes <- length(unique(c(tree$edge[,1],tree$edge[,2])))
     tree$nodes <- rep(list(sequence=NULL),times=nnodes)
-    if(brln == "unlinked"){
+    if(!is.null(partition) && partition == "unlinked"){
       p_trees <- ape::read.tree(file.path(dir, paste0(name, ".raxml.bestPartitionTrees")))
       p1 <- sum(p_trees[[1]]$edge.length)
       p2 <- sum(p_trees[[2]]$edge.length)
@@ -2007,7 +1930,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
       tryCatch(buildPhylo(data[[x]],
                           exec=exec,
                           temp_path=file.path(dir,paste0(id,"_trees_",x)),
-                          rm_temp=rm_temp,seq=seqs[x],tree=trees[[x]]),
+                          rm_temp=rm_temp,seq=seqs[x],tree=trees[[x]],...),
                error=function(e)e),
       mc.cores=nproc)
   }else if(build=="pratchet"){
@@ -2043,7 +1966,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
                           exec = exec,
                           rm_files = rm_temp,
                           dir=dir,
-                          tree=trees[[x]],...),error=function(e)e),
+                          starting_tree=trees[[x]],...),error=function(e)e),
       mc.cores=nproc)
   } else{
     stop("build specification ", build, " not recognized")
@@ -2450,7 +2373,8 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
       # if tree provided, drop selected tips
       if(!is.null(tree)){
         od <- getDivergence(tree)
-        otree <- tree
+        # CGJ 9/5/23 found via checkUsagePackage("dowser")
+        # otree <- tree
         tree <- ape::drop.tip(tree, tip=rm)
         nd <- getDivergence(tree)
         maxdiff <- max(nd - od[names(nd)])
@@ -2878,20 +2802,24 @@ getSubTaxa = function(node, tree){
 # 
 # \code{lones} Filler
 # @param    input_tree     \code{phylo} object
-# @param    bootstrap_number      Which bootstrap replicate to use. With only one tree, this has to be one. 
+# @param    bootstrap_number      Which bootstrap replicate to use. With only 
+# @param                          one tree, this has to be one. 
 #
-# @return   A dataframe that lists out the value of found or absent tips for each node within a tree. This is done for each tree inputted.
+# @return   A dataframe that lists out the value of found or absent tips for each 
+#           node within a tree. This is done for each tree inputted.
 # bootstrapped sequences
 splits_func <- function(input_tree, bootstrap_number){
   tree <- input_tree[[bootstrap_number]] 
-  # KBH need to verify that Nnode is always correct. May be safer to use n_distinct(tree$edge[,1])
   splits <- data.frame(found=I(lapply(
-    (length(tree$tip.label) + 1):(length(tree$tip.label) +  dplyr::n_distinct(tree$edge[,1])),
+    (length(tree$tip.label) + 1):(length(tree$tip.label) +  
+                                    dplyr::n_distinct(tree$edge[,1])),
     function(x)getSubTaxa(x, tree))))
-  splits$node <- (length(tree$tip.label) + 1):(length(tree$tip.label) +  dplyr::n_distinct(tree$edge[,1]))
+  splits$node <- (length(tree$tip.label) + 1):(length(tree$tip.label) +
+                                              dplyr::n_distinct(tree$edge[,1]))
   # find the difference between tip labels and the tips in 'found'
   full_tips <- tree$tip.label 
-  absent <- (lapply(1:length(splits$found), function(x)dplyr::setdiff(full_tips, splits$found[[x]])))
+  absent <- (lapply(1:length(splits$found), 
+                    function(x)dplyr::setdiff(full_tips, splits$found[[x]])))
   splits <- cbind(splits, data.frame(absent=I(absent)))
   splits$tree_num <- bootstrap_number
   # reorder it to make sense -- tree number, node number, found tips, and absent
@@ -2911,10 +2839,8 @@ splits_func <- function(input_tree, bootstrap_number){
 #
 # @return   Returns a vector with the number of matches. 
 matching_function_parallel <- function(tree_comp_df, bootstrap_df, nproc){
-  #print("matching")
   match_vector <- c()
   match_vector = parallel::mclapply(unique(tree_comp_df$node), function(node){
-    #print(node)
     # KEN: There must be a more efficient way of doing this but I can't think of 
     # one right now
     sub_full_tree_df <- tree_comp_df[tree_comp_df$node==node,]
@@ -2943,7 +2869,7 @@ matching_function_parallel <- function(tree_comp_df, bootstrap_df, nproc){
 consensus_tree <- function(trees){
   consensus <- ape::consensus(trees, check.labels=TRUE)
   consensus$edge.length <- rep(1, nrow(consensus$edge))
-  consenus <- rerootTree(consensus, germline="Germline", verbose=0)
+  consensus <- rerootTree(consensus, germline="Germline", verbose=0)
   return(consensus)
 }
 
@@ -3009,19 +2935,19 @@ makeTrees <- function(clones, seq, build, boot_part, exec, dir, rm_temp=TRUE, id
     trees <- list(trees)
   }else if(build=="pml"){
     trees <- lapply(reps,function(x)tryCatch(buildPML(data_tmp[[x]],seq=seqs[x],
-                                                      quiet=quiet, rep=rep,...), error=function(e)e))
+                                quiet=quiet, rep=rep,...), error=function(e)e))
     
     trees <- list(trees)
   } else if(build=="raxml"){ # CGJ 2/20/23
     trees <- lapply(reps,function(x)tryCatch(buildRAxML(data_tmp[[x]],
-                                                        seq=seqs[x],
-                                                        exec = exec,
-                                                        trees = starting_tree[[x]],
-                                                        rm_files = rm_temp,
-                                                        rep = rep,
-                                                        dir = dir,
-                                                        rseed = x,
-                                                        from_getTrees=from_getTrees,...),error=function(e)e))
+                          seq=seqs[x],
+                          exec = exec,
+                          trees = starting_tree[[x]],
+                          rm_files = rm_temp,
+                          rep = rep,
+                          dir = dir,
+                          rseed = x,
+                          from_getTrees=from_getTrees,...),error=function(e)e))
   } else if(build=="igphyml"){
     if(rm_temp){
       rm_dir <- file.path(dir,paste0(id,rep))
@@ -3094,7 +3020,7 @@ getBootstraps <- function(clones, bootstraps,
                           nproc=1, bootstrap_nodes=TRUE, dir=NULL, id=NULL, build="pratchet", 
                           exec=NULL, quiet=0, rm_temp=TRUE, rep=NULL, seq=NULL,
                           boot_part="locus", by_codon = TRUE, starting_tree=FALSE,
-                          switches=FALSE,...){
+                          switches=FALSE, ...){
   if(is.null(exec) && (!build %in% c("pratchet", "pml"))){
     stop("exec must be specified for this build option")
   }
@@ -3128,7 +3054,8 @@ getBootstraps <- function(clones, bootstraps,
     warning("Large dataset - best to set rm_temp=TRUE")
   }
   if(build == "igphyml"){
-    igphyml <- path.expand(exec)
+    # CGJ 9/5/23 checkUsagePackage("dowser") found it
+    # igphyml <- path.expand(exec)
     if(!is.null(dir)){
       if(!dir.exists(dir)){
         dir.create(dir)
@@ -3156,13 +3083,10 @@ getBootstraps <- function(clones, bootstraps,
   if(!switches){
     if(bootstrap_nodes){
       if(!"trees" %in% colnames(clones)){
-        stop("A tree column created by using getTrees() is required for 
+        stop("A trees column created by using getTrees() is required if 
            bootstrap_nodes=TRUE")
       }
     }
-    #KBH there has to be a better way to do this. Copying and pasting code this many times makes it hard to maintain
-    # check to make sure that getTrees used the same build as here
-    #KBH
     build_used <- gsub("phangorn::", "", clones$trees[[1]]$tree_method)
     build_used <- gsub("phylip::", "", build_used)
     build_used <- gsub("\\:.*", "", build_used)
@@ -3177,15 +3101,18 @@ getBootstraps <- function(clones, bootstraps,
       build_used <- "pratchet"
     }
     if(build != build_used){
-      stop(paste0("Trees and bootstrapped trees need to be made using the same method. Use the same build option in getTrees as getBootstraps.
-           getBoostraps is trying to use a ", build, " build, but getTrees used ", build_used, " to build trees."))
+      stop(paste0("Trees and bootstrapped trees need to be made using the same method.",
+                  " Use the same build option in getTrees as getBootstraps.",
+                  " getBootstraps is trying to use a ", build, 
+                  " build, but getTrees used ", build_used, " to build trees."))
     }
     # CGJ 2/20/23
     if(starting_tree){
       if("trees" %in% colnames(clones)){
         starting_tree <- clones$trees
       } else{
-        stop("starting_trees cannot be set as TRUE without an already made trees column. Use getTrees() to get the trees column. ")
+        stop("starting_trees cannot be set as TRUE without an already made trees",
+             " column. Use getTrees() to get the trees column.")
       }
     } else{
       starting_tree <- NULL
@@ -3275,70 +3202,4 @@ getBootstraps <- function(clones, bootstraps,
     }
   }
   return(clones)
-}
-
-#' Finds the Robinson-Fould's Distance between phylogenies. 
-#' 
-#' \code{calcRF} Calculates the RF distance between two phylogenetic trees with the same tips and tip labels.
-#' @param tree_1         A \code{phylo} object
-#' @param tree_2         A \code{phylo} object
-#'
-#' @return   The input clones tibble with an additional column for the bootstrap replicate trees.
-#'  
-#' @export
-calcRF <- function(tree_1, tree_2){
-  tip_amount_check <- length(tree_1$tip.label) == length(tree_2$tip.label)
-  if(!tip_amount_check){
-    stop("trees do not have the same amount of tips")
-  }
-  tip_check <- dplyr::setdiff(tree_1$tip.label, tree_2$tip.label)
-  if(!identical(tip_check, character(0))){
-    stop("tree tip labels are not identical")
-  }
-  tree_1_df <- splits_func(list(tree_1),1)
-  tree_2_df <- splits_func(list(tree_2), 1)
-  total_mismatches <- c()
-  for(i in 1:nrow(tree_1_df)){
-    tree_1_sub <- tree_1_df$found[[i]]
-    mismatch_vector <- c()
-    for(j in 1:nrow(tree_2_df)){
-      mismatches_1 <- dplyr::setdiff(tree_2_df$found[[j]], tree_1_sub)
-      mismatches_2 <- dplyr::setdiff(tree_1_sub, tree_2_df$found[[j]])
-      if(identical(mismatches_1, character(0)) & identical(mismatches_2, character(0))){
-        mismatch_vector <- append(mismatch_vector, "match")      
-      } else{
-        mismatch_vector <- append(mismatch_vector, "mismatch")
-      }
-    }
-    if("match" %in% mismatch_vector){
-      tobind <- 0
-    } else{
-      tobind <- 1
-    }
-    total_mismatches <- append(total_mismatches, tobind)
-  }
-  total_mismatches <- sum(total_mismatches)
-  clone_mismatches <- c()
-  for(i in 1:nrow(tree_2_df)){
-    tree_2_sub <- tree_2_df$found[[i]]
-    mismatch_vector <- c()
-    for(j in 1:nrow(tree_1_df)){
-      mismatches_1 <- setdiff(tree_1_df$found[[j]], tree_2_sub)
-      mismatches_2 <- setdiff(tree_2_sub, tree_1_df$found[[j]])
-      if(identical(mismatches_1, character(0)) & identical(mismatches_2, character(0))){
-        mismatch_vector <- append(mismatch_vector, "match")      
-      } else{
-        mismatch_vector <- append(mismatch_vector, "mismatch")
-      }
-    }
-    if("match" %in% mismatch_vector){
-      tobind <- 0
-    } else{
-      tobind <- 1
-    }
-    clone_mismatches <- append(clone_mismatches, tobind)
-  }
-  clone_mismatches <- sum(clone_mismatches)
-  all_mismatches <- total_mismatches + clone_mismatches
-  return(all_mismatches)
 }

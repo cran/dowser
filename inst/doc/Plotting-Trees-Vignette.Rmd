@@ -92,14 +92,14 @@ plots = plotTrees(ExampleClones, tips="c_call", tipsize="duplicate_count")
 plots[[1]]
 ```
 
-The `tip_palette` is constant among all trees plotted at once, and can be specified as either a named vector of hex colors, or as an RColorBrewer palette name:
+The `palette` is constant among all trees plotted at once, and can be specified as either a named vector of hex colors, or as an RColorBrewer palette name:
 
 ```{r, eval=TRUE, warning=FALSE, message=FALSE}
 # These calls create the same plot:
 
 # Plot tree with sequence isotype at the tips, with palette "Set1"
 plots = plotTrees(ExampleClones, tips="c_call", tipsize=2,
-    tip_palette="Paired")
+    palette="Paired")
 
 # or, specify a named palette vector
 custom_palette=c(
@@ -115,14 +115,14 @@ custom_palette=c(
     "Germline"="#6a3d9a")
 
 plots = plotTrees(ExampleClones, tips="c_call", tipsize=2,
-    tip_palette=custom_palette)
+      palette=custom_palette)
 
 # or, use the getPalette function to create a named palette vector
 custom_palette = getPalette(c("IGHM","IGHD","IGHG3","IGHG1","IGHA1",
-    "IGHG2","IGHG4","IGHE","IGHA2","Germline"), "Paired")
+    "IGHG2","IGHG4","IGHE","IGHA2"), "Paired")
 
 plots = plotTrees(ExampleClones, tips="c_call", tipsize=2,
-    tip_palette=custom_palette)
+    palette=custom_palette)
 
 #Plot the largest tree
 plots[[1]]
@@ -160,7 +160,26 @@ treeplot = plots[[1]] + geom_tiplab(aes(label=c_call), offset = 0.02) +
 
 treeplot
 ```
+## Editing all trees at once
 
+To make changes to all trees at once, use lapply
+
+```{r, eval=TRUE, warning=FALSE, message=FALSE}
+library(ggtree)
+
+plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
+
+#Manually adjust all trees
+treeplots = lapply(plots, function(x)
+  x + geom_tiplab(aes(label=c_call), offset = 0.02) + 
+    geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
+        linetype="dashed",color="grey") + xlim(0,0.3) +
+    ggtitle("Example B cell tree")
+  )
+
+# plot 2nd largest tree
+treeplots[[2]]
+```
 
 ## Saving trees to a file
 

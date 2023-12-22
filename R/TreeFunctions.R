@@ -311,7 +311,7 @@ bootstrapClones  <- function(clone, reps=100, partition="locus", by_codon = TRUE
 #' @param    rm_files      remove temporary files?
 #' @param    rm_dir        remove temporary directory?
 #' @param    states        states in parsimony model
-#' @param    palette       palette for coloring tree (see getPallete)
+#' @param    palette       deprecated
 #' @param    resolve       level of polytomy resolution. 0=none, 
 #'                         1=maximum parsimony, 2=maximum ambiguity
 #' @param    rseed         random number seed if desired
@@ -408,8 +408,9 @@ reconIgPhyML <- function(file, modelfile, id,
     if(is.null(states)){
       states <- readModelFile(modelfile)
     }
-    if(is.null(palette)){
-      palette <- getPalette(states,palette="Dark2")
+    if(!is.null(palette)){
+      warning("palette option is deprecated in reconIgPhyML")
+      palette <- NULL
     }
     results <- readLineages(file,states,palette,"recon",quiet)
     results <- lapply(results,function(x){
@@ -441,7 +442,7 @@ reconIgPhyML <- function(file, modelfile, id,
 #' 
 #' @param    file    IgPhyML lineage file
 #' @param    states  states in parsimony model
-#' @param    palette palette for coloring internal nodes
+#' @param    palette deprecated
 #' @param    run_id  id used for IgPhyML run
 #' @param    quiet   avoid printing rubbish on screen?
 #' @param    append  string appended to fasta files
@@ -452,9 +453,13 @@ reconIgPhyML <- function(file, modelfile, id,
 #'
 #' @return   A list of phylo objects from \code{file}.
 #' @export
-readLineages <- function(file, states=NULL, palette="Dark2",
+readLineages <- function(file, states=NULL, palette=NULL,
                          run_id="", quiet=TRUE, append=NULL, format="nexus", 
                          type="jointpars"){
+  if(!is.null(palette)){
+    warning("palette is deprecated in readLineages")
+    palette <- NULL
+  }
   trees <- list()
   t <- readLines(file)
   if(length(t) == 0){
@@ -1319,7 +1324,7 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     write(paste0(clone_seqids[i], "    ", clone_seqs[i]), file=file.path(dir, paste0(name, "_input_data.phy")), 
           append = TRUE)
   }
-  closeAllConnections()
+  close(fileConn)
   input_data <- file.path(dir, paste0(name, "_input_data.phy"))
   
   command <- paste("--model", model, "--seed", rseed, "-msa", 
@@ -1341,7 +1346,7 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     write(paste0(model, ", p2 = ", nchar(end_heavy)+1, "-", nchar(clone_seqs[1])), 
           file=file.path(dir, paste0(name, "_partition.txt")), 
           append = TRUE)
-    closeAllConnections()
+    close(fileConn)
     old_command <- strsplit(command, "--seed")[[1]][2]
     new_model <- paste("--model", file.path(dir, paste0(name, "_partition.txt")), "--seed")
     command <- paste0(new_model, old_command, " --brlen ", partition)
@@ -1555,7 +1560,6 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
   tree$tree_method <- paste0("RAxML:", strsplit(tree_method[grep("Model: ", tree_method)],
                                "Model: ")[[1]][2])
   tree$edge_type <- "genetic_distance"
-  closeAllConnections()
   if(rm_files){
     unlink(file.path(dir, paste0(name,"*")))
   }
@@ -1751,7 +1755,7 @@ rerootTree <- function(tree, germline, min=0.001, verbose=1){
 #' @param    nproc      number of cores to parallelize computations
 #' @param    quiet      amount of rubbish to print to console
 #' @param    rm_temp    remove temporary files (default=TRUE)
-#' @param    palette    a named vector specifying colors for each state
+#' @param    palette    deprecated
 #' @param    seq        column name containing sequence information
 #' @param    collapse   Collapse internal nodes with identical sequences?
 #' @param    ...        Additional arguments passed to tree building programs
@@ -1811,6 +1815,11 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
   if(!inherits(data[[1]], "airrClone")){
     stop("Input data must be a list of airrClone objects")
   }
+  if(!is.null(palette)){
+    warning("palette option is deprecated in getTrees, specify in plotTrees")
+    palette <- NULL
+  }
+
   # make sure all sequences and germlines within a clone are the same length
   unlist(lapply(data, function(x){
     if(x@phylo_seq == "hlsequence"){
@@ -2273,9 +2282,9 @@ getNodeSeq <- function(data, node, tree=NULL, clone=NULL, gaps=TRUE){
     if(is.null(clone)){
       stop("must provide either tree object or clone ID")
     }
-    tree <- filter(data,!!rlang::sym("clone_id")==clone)$trees[[1]]
+    tree <- dplyr::filter(data,!!rlang::sym("clone_id")==clone)$trees[[1]]
   }
-  clone <- filter(data,!!rlang::sym("clone_id")==tree$name)$data[[1]]
+  clone <- dplyr::filter(data,!!rlang::sym("clone_id")==tree$name)$data[[1]]
   seqs <- c()
   seq <- strsplit(tree$nodes[[node]]$sequence,split="")[[1]]
   loci <- unique(clone@locus)
@@ -2421,7 +2430,7 @@ downsampleClone <- function(clone, trait, tip_switch=20, tree=NULL){
 #' @param nproc            number of cores to parallelize computations
 #' @param quiet           amount of rubbish to print to console
 #' @param rm_temp       remove temporary files (default=TRUE)
-#' @param palette       a named vector specifying colors for each state
+#' @param palette       deprecated
 #' @param resolve       how should polytomies be resolved? 
 #'                       0=none, 1=max parsminy, 2=max ambiguity + polytomy skipping,
 #'                       3=max ambiguity
@@ -2730,7 +2739,7 @@ findSwitches <- function(clones, permutations, trait, igphyml,
 #' @param nproc            number of cores to parallelize computations
 #' @param quiet           amount of rubbish to print to console
 #' @param rm_temp       remove temporary files (default=TRUE)
-#' @param palette        a named vector specifying colors for each state
+#' @param palette        deprecated
 #' @param resolve        how should polytomies be resolved? 
 #'                       0=none, 1=max parsminy, 2=max ambiguity + polytomy skipping,
 #'                       3=max ambiguity

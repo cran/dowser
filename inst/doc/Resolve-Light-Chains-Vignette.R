@@ -37,7 +37,7 @@ data(ExampleMixedClones)
 
 ExampleMixedClones$trees <- ExampleMixedClones$igphyml_partitioned_trees
 
-plotTrees(ExampleMixedClones)[[1]]+geom_tiplab() +xlim(0,0.35)
+plotTrees(ExampleMixedClones)[[1]] + geom_tiplab() +xlim(0,0.35)
 
 ## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
 #  
@@ -52,5 +52,5 @@ plotTrees(ExampleMixedClones)[[1]]+geom_tiplab() +xlim(0,0.35)
 data(ExampleMixedClones)
 # change the tree names
 ExampleMixedClones$trees <- ExampleMixedClones$raxml_partitioned_trees
-plotTrees(ExampleMixedClones)[[1]]+geom_tiplab()+xlim(0, 0.12)
+plotTrees(ExampleMixedClones)[[1]] + geom_tiplab() + xlim(0, 0.12)
 

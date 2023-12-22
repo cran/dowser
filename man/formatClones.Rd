@@ -33,9 +33,10 @@ formatClones(
   nproc = 1,
   chain = "H",
   heavy = "IGH",
-  filterStop = TRUE,
+  filterstop = TRUE,
   minseq = 2,
   split_light = FALSE,
+  light_traits = FALSE,
   majoronly = FALSE,
   columns = NULL
 )
@@ -118,11 +119,13 @@ sequences silently.}
 
 \item{heavy}{name of heavy chain locus (default = "IGH")}
 
-\item{filterStop}{only use sequences that do not contain an in-frame stop codon}
+\item{filterstop}{only use sequences that do not contain an in-frame stop codon}
 
 \item{minseq}{minimum number of sequences per clone}
 
 \item{split_light}{split or lump subgroups? See \code{resolveLightChains}.}
+
+\item{light_traits}{Include the traits from the light chain when concatenating and collapsing trees?}
 
 \item{majoronly}{only return largest subgroup and sequences without light chains}
 

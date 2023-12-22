@@ -9,7 +9,7 @@
 #  
 #  # Process example data using default settings
 #  clones = formatClones(ExampleAirr,
-#      traits=trait,num_fields="duplicate_count", minseq=3)
+#      traits=trait, num_fields="duplicate_count", minseq=3)
 #  
 #  # Column shows which biopsy the B cell was obtained from
 #  print(table(ExampleAirr[[trait]]))
@@ -38,13 +38,13 @@
 #  trees = getTrees(clones, build="pml", trait=trait, igphyml=igphyml_location)
 #  
 #  # show internal node (edge) predictions based on maximum parsimony
-#  plotTrees(trees, tips=trait, nodes=TRUE, node_palette="Set1")[[1]]
+#  plotTrees(trees, tips=trait, nodes=TRUE, palette="Set1")[[1]]
 
 ## ---- eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE---------------------
 library(dowser)
 # Load data instead of running phylip
 data(BiopsyTrees)
-plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, node_palette="Set1")[[1]]
+plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 
 ## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
 #  # the location of the igphyml executable
@@ -155,14 +155,14 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, node_palette="Set1")[[1]]
 #  
 #  # Build trees and predict states at internal nodes using maximum parsimony
 #  trees = getTrees(clones[isotype_counts > 1,], trait=trait, igphyml=igphyml_location,
-#    modelfile="isotype_model.txt", palette="Paired")
+#    modelfile="isotype_model.txt")
 #  
 #  # show internal node (edge) predictions based on maximum parsimony
-#  plotTrees(trees, tips=trait, nodes=TRUE, node_palette="Paired", ambig="grey")[[1]]
+#  plotTrees(trees, tips=trait, nodes=TRUE, palette="Paired", ambig="grey")[[1]]
 
 ## ---- eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE---------------------
 data(IsotypeTrees)
-plotTrees(IsotypeTrees, tips="c_call", nodes=TRUE, node_palette="Paired", ambig="grey")[[1]]
+plotTrees(IsotypeTrees, tips="c_call", nodes=TRUE, palette="Paired", ambig="grey")[[1]]
 
 ## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
 #  # Downsample each tree to a tip-to-switch ratio of 10 instead of 20

@@ -1,4 +1,4 @@
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 
 library(dowser)
 
@@ -13,7 +13,7 @@ plots = plotTrees(ExampleClones)
 plots[[1]]
 
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 
 # Re-scale branches to represent mutations between nodes
 ExampleClones_m = scaleBranches(ExampleClones, edge_type="mutations")
@@ -25,21 +25,21 @@ plots = plotTrees(ExampleClones_m, scale=10)
 plots[[1]]
 
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 # Plot tree with sequence isotype at the tips.
 plots = plotTrees(ExampleClones, tips="c_call")
 
 #Plot the largest tree
 plots[[1]]
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 # Plot tree with sequence isotype at the tips, with sizes set to number of duplicates
 plots = plotTrees(ExampleClones, tips="c_call", tipsize="duplicate_count")
 
 #Plot the largest tree
 plots[[1]]
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 # These calls create the same plot:
 
 # Plot tree with sequence isotype at the tips, with palette "Set1"
@@ -72,7 +72,7 @@ plots = plotTrees(ExampleClones, tips="c_call", tipsize=2,
 #Plot the largest tree
 plots[[1]]
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 library(ggtree)
 
 plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
@@ -85,7 +85,7 @@ treeplot = plots[[1]] + geom_tiplab() +
 
 treeplot
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 library(ggtree)
 
 plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
@@ -98,7 +98,7 @@ treeplot = plots[[1]] + geom_tiplab(aes(label=c_call), offset = 0.02) +
 
 treeplot
 
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 library(ggtree)
 
 plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
@@ -114,7 +114,7 @@ treeplots = lapply(plots, function(x)
 # plot 2nd largest tree
 treeplots[[2]]
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
 #  
 #  # you can also pass arguments you would pass to grDevices::pdf, like width and height

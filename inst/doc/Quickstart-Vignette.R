@@ -1,4 +1,4 @@
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 # Load required packages
 library(alakazam)
 library(dowser)

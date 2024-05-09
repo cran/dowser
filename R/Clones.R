@@ -344,7 +344,7 @@ makeAirrClone <-
         stop(paste0("Germline sequences for clone ",
                     unique(dplyr::pull(data,clone)),
                     " are not identical. All predicted germline sequences ",
-                    "must be identical within a clone. Be sure to use the",
+                    "must be identical within a clone. Be sure to use the ",
                     "createGermlines function before formatClones or makeAirrClone."))
       }
       lgermline <- alakazam::maskSeqGaps(data[[germ]][1], 
@@ -399,7 +399,7 @@ makeAirrClone <-
         stop(paste0("Germline sequences for clone ",
                     unique(dplyr::pull(data,clone)),
                     " are not identical. All predicted germline sequences ",
-                    "must be identical within a clone. Be sure to use the",
+                    "must be identical within a clone. Be sure to use the ",
                     "createGermlines function before formatClones or makeAirrClone."))
       }
       germline <- alakazam::maskSeqGaps(data[[germ]][1], 
@@ -665,7 +665,7 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
     add_count=TRUE, verbose=FALSE, collapse=TRUE,
     cell="cell_id", locus="locus", traits=NULL, mod3=TRUE, randomize=TRUE,
     use_regions=TRUE, dup_singles=FALSE, nproc=1, chain="H", heavy="IGH", 
-    filterstop=TRUE, minseq=2, split_light=FALSE, light_traits=FALSE,majoronly=FALSE,
+    filterstop=FALSE, minseq=2, split_light=FALSE, light_traits=FALSE, majoronly=FALSE,
     columns=NULL){
   
   if(majoronly){
@@ -877,8 +877,8 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
 #' @param    s               (subject) aligned input sequence (sequence_alignment)
 #' @param    keep_alignment  store q and s alignments
 #' @param    keep_insertions return removed insertion sequences?
-#' @param    gap_opening      gap opening penalty (Biostrings::pairwiseALignment)
-#' @param    gap_extension    gap extension penalty (Biostrings::pairwiseALignment)
+#' @param    gap_opening      gap opening penalty (Biostrings::pairwiseAlignment)
+#' @param    gap_extension    gap extension penalty (Biostrings::pairwiseAlignment)
 #' @param    mask            if FALSE, don't mask codons
 #' @return   A list with split codons masked, if found (sequence_masked).
 #'

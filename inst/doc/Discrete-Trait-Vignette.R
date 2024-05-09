@@ -1,4 +1,4 @@
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  library(dowser)
 #  
 #  # load example AIRR tsv data
@@ -27,7 +27,7 @@
 #  trees = getTrees(clones, build="pml")
 #  
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # the location of the igphyml executable
 #  # this is location in Docker image, will likely be different if you've set it up yourself
 #  # note this is the location of the compiled executable file, not just the source folder
@@ -40,13 +40,13 @@
 #  # show internal node (edge) predictions based on maximum parsimony
 #  plotTrees(trees, tips=trait, nodes=TRUE, palette="Set1")[[1]]
 
-## ---- eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE---------------------
+## ----eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE----------------------
 library(dowser)
 # Load data instead of running phylip
 data(BiopsyTrees)
 plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # the location of the igphyml executable
 #  # this is location in Docker image, will likely be different if you've set it up yourself
 #  # note this is the location of the compiled executable file, not just the source folder
@@ -76,7 +76,7 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 #  #2 Nose  Lung  0.869   0.677     0  0.192 SP      100
 #  
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # calculate switches along bootstrap distribution of trees
 #  # build using the 'pml' maximum likelihood option
 #  # in a real analysis it's important to use at least 100 permutations
@@ -93,7 +93,7 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 #  #2 Nose  Lung  0.832   0.642   0.1  0.190 SP       10
 #  
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  sp = testSP(switches$switches, alternative="greater", permuteAll=TRUE)
 #  print(sp$means)
 #  # A tibble: 2 x 8
@@ -103,7 +103,7 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 #  #1 Lung  Nose  0.168   0.241   0.6 -0.0736 SP       10
 #  #2 Nose  Lung  0.832   0.759   0.4  0.0736 SP       10
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # Downsample each tree to a tip-to-switch ratio of 10 instead of 20
 #  # this will reduce the false positive rate but also (likely) power
 #  switches = findSwitches(trees, permutations=100, trait=trait,
@@ -120,7 +120,7 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 #  #2 Nose  Lung  0.832   0.642   0.1  0.190 SP       10
 #  
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # the location of the igphyml executable
 #  # this is location in Docker image, will likely be different if you've set it up yourself
 #  # note this is the location of the compiled executable file, not just the source folder
@@ -160,11 +160,11 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 #  # show internal node (edge) predictions based on maximum parsimony
 #  plotTrees(trees, tips=trait, nodes=TRUE, palette="Paired", ambig="grey")[[1]]
 
-## ---- eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE---------------------
+## ----eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE----------------------
 data(IsotypeTrees)
 plotTrees(IsotypeTrees, tips="c_call", nodes=TRUE, palette="Paired", ambig="grey")[[1]]
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # Downsample each tree to a tip-to-switch ratio of 10 instead of 20
 #  # this will reduce the false positive rate but also (likely) power
 #  switches = findSwitches(trees, permutations=100, trait=trait,
@@ -221,7 +221,7 @@ plotTrees(IsotypeTrees, tips="c_call", nodes=TRUE, palette="Paired", ambig="grey
 #  #41 IGHG4 IGHG2 0       0        1     0        SP      100
 #  #42 IGHG4 IGHG3 0       0        1     0        SP      100
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  sp = testSP(switches$switches, alternative="greater", to="IGHA2")
 #  print(sp$means)
 #  # A tibble: 8 × 8

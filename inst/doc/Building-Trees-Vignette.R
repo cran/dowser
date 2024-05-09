@@ -1,4 +1,4 @@
-## ---- eval=TRUE, warning=FALSE, message=FALSE---------------------------------
+## ----eval=TRUE, warning=FALSE, message=FALSE----------------------------------
 library(dowser)
 
 # load example AIRR tsv data
@@ -21,7 +21,7 @@ clones = formatClones(ExampleAirr, traits=c("sample_id","c_call"),
 
 print(clones)
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  clones = getTrees(clones, nproc=1)
 #  
@@ -32,7 +32,7 @@ print(clones)
 #  #1     3170 <airrClon> N        13 Subject_1  <phylo>
 #  #2     3184 <airrClon> N        12 Subject_1  <phylo>
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  # exec here is set to dnapars position in the Docker image.
 #  clones = getTrees(clones, build="dnapars", exec="/usr/local/bin/dnapars", nproc=1)
 #  
@@ -43,7 +43,7 @@ print(clones)
 #  #1     3170 <airrClon> N        13 Subject_1  <phylo>
 #  #2     3184 <airrClon> N        12 Subject_1  <phylo>
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  clones = getTrees(clones, build="pml")
 #  
@@ -54,7 +54,7 @@ print(clones)
 #  #1     3170 <airrClon> N        13 Subject_1  <phylo>
 #  #2     3184 <airrClon> N        12 Subject_1  <phylo>
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  # exec here is set to dnaml position in the Docker image.
 #  clones = getTrees(clones, build="dnaml", exec="/usr/local/bin/dnaml")
@@ -66,7 +66,7 @@ print(clones)
 #  #1     3170 <airrClon> N        13 Subject_1  <phylo>
 #  #2     3184 <airrClon> N        12 Subject_1  <phylo>
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  # exec here is set to raxml position in the Docker image.
 #  clones = getTrees(clones, build="raxml", exec="/usr/local/bin/raxml-ng")
@@ -78,7 +78,7 @@ print(clones)
 #  #1     3170 <airrClon> N        13 Subject_1  <phylo>
 #  #2     3184 <airrClon> N        12 Subject_1  <phylo>
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  # exec here is set to IgPhyML position in the Docker image.
 #  clones = getTrees(clones, build="igphyml",
@@ -95,7 +95,7 @@ print(clones)
 #  clones$parameters[[1]]$omega_mle
 #  #[1] 0.5286
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  # exec here is set to IgPhyML position in the Docker image.
 #  # Only the newest version of IgPhyML (v2.0.0) supports multi-partition trees

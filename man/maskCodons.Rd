@@ -24,9 +24,9 @@ maskCodons(
 
 \item{keep_alignment}{store q and s alignments}
 
-\item{gap_opening}{gap opening penalty (Biostrings::pairwiseALignment)}
+\item{gap_opening}{gap opening penalty (Biostrings::pairwiseAlignment)}
 
-\item{gap_extension}{gap extension penalty (Biostrings::pairwiseALignment)}
+\item{gap_extension}{gap extension penalty (Biostrings::pairwiseAlignment)}
 
 \item{keep_insertions}{return removed insertion sequences?}
 

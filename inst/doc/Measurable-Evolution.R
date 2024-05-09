@@ -1,4 +1,4 @@
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  library(dowser)
 #  
 #  # load example AIRR tsv data
@@ -23,7 +23,7 @@
 #  trees = getTrees(clones, build="pml")
 #  
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  
 #  # correlation test with 10000 repetitions
 #  test = correlationTest(trees, permutations=10000, time="timepoint")
@@ -56,7 +56,7 @@
 #  
 #  
 
-## ---- eval=FALSE, warning=FALSE, message=FALSE--------------------------------
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 #  library(ggtree)
 #  
 #  # order trees by p value
@@ -67,7 +67,7 @@
 #      geom_tippoint(aes(fill=timepoint), pch=21, size=2) +
 #      scale_fill_distiller(palette="RdYlBu")
 
-## ---- eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE---------------------
+## ----eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE----------------------
 library(dowser)
 data(TimeTrees)
 TimeTrees = TimeTrees[order(TimeTrees$p),]

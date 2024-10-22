@@ -39,7 +39,7 @@ getTrees(
 \item{modelfile}{file specifying parsimony model to use}
 
 \item{build}{program to use for tree building (pratchet, pml,
-dnapars, dnaml, igphyml)}
+dnapars, dnaml, igphyml, raxml)}
 
 \item{exec}{location of desired phylogenetic executable}
 
@@ -87,7 +87,6 @@ For examples and vignettes, see https://dowser.readthedocs.io
 }
 \examples{
 data(ExampleClones)
-
 trees <- getTrees(ExampleClones[10,])
 plotTrees(trees)[[1]]
 
@@ -101,5 +100,5 @@ plotTrees(trees)[[1]]
 }
 \seealso{
 \link{formatClones}, \link{findSwitches}, \link{buildPhylo},
-\link{buildPratchet}, \link{buildPML}, \link{buildIgphyml}
+\link{buildPratchet}, \link{buildPML}, \link{buildIgphyml}, \link{buildRAxML}
 }

@@ -2,7 +2,7 @@
 
 # Write a clone's sequence alignment to a fasta file
 # 
-# \code{writeFasta} write clone sequences as a fasta file
+# \code{cloneToFasta} write clone sequences as a fasta file
 # @param    c            airrClone object
 # @param    fastafile    file to be exported
 # @param    germid       sequence id of germline
@@ -10,7 +10,7 @@
 # @param    empty        don't include real sequence information
 #
 # @return   Name of exported fasta file.
-writeFasta <- function(c, fastafile, germid, trait=NULL, empty=FALSE){
+cloneToFasta <- function(c, fastafile, germid, trait=NULL, empty=FALSE){
   text <- ""
   if(!is.null(trait)){
     c@data$sequence_id <- paste(c@data$sequence_id,c@data[,trait],sep="_")
@@ -58,6 +58,9 @@ writeFasta <- function(c, fastafile, germid, trait=NULL, empty=FALSE){
 #' @export
 readFasta <- function(file){
   f <- readLines(file)
+  if(length(f) == 1){
+    return(NULL)
+  }
   seqs <- list()
   id <- NA
   for(line in f){
@@ -539,7 +542,7 @@ writeLineageFile <- function(data, trees=NULL, dir=".", id="N", rep=NULL,
     fastafile <- file.path(outdir,paste0(data[[i]]@clone,".fasta"))
     treefile <- file.path(outdir,paste0(data[[i]]@clone,".tree"))
     germid <- paste0(data[[i]]@clone,"_GERM")
-    writeFasta(data[[i]],fastafile,germid,trait,empty=empty)
+    cloneToFasta(data[[i]],fastafile,germid,trait,empty=empty)
     if(data[[i]]@phylo_seq == "sequence"){
       g <- data[[i]]@germline
     }else if(data[[i]]@phylo_seq == "lsequence"){
@@ -742,6 +745,7 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
                           data_type="DNA"){
   seqs <- clone@data[[seq]]
   names <- clone@data$sequence_id
+
   if(verbose > 0){
     print(clone@clone)
   }
@@ -755,10 +759,13 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
   }else{
     germline <- clone@germline
   }
+  
   seqs <- base::append(seqs,germline)
   names <- c(names,"Germline")
+  
   seqs <- strsplit(seqs,split="")
   names(seqs) <- names
+
   lengths = unlist(lapply(seqs,function(x)length(x)))
   if(any(lengths != lengths[1])){
     stop(paste0("Sequence and/or germline lengths of clone ",
@@ -786,28 +793,71 @@ buildPratchet <- function(clone, seq="sequence", asr="seq", asr_thresh=0.05,
   }
   tree$name <- clone@clone
   tree$seq <- seq
+  
   if(asr != "none" && data_type=="DNA"){
     seqs_pars <- phangorn::ancestral.pars(tree, data, 
                                           type=asr_type, cost=NULL, return="prob")
-    ASR <- list()
-    for(i in 1:max(tree$edge)){
-      patterns <- t(subset(seqs_pars, i)[[1]])
-      pat <- patterns[,attr(seqs_pars,"index")]
-      if(asr == "seq"){
-        thresh <- pat > asr_thresh
-        acgt <- c("A","C","G","T")
-        seq_ar <- unlist(lapply(1:ncol(pat),function(x){
-          site <- acgt[thresh[,x]]
-          site <- alakazam::DNA_IUPAC[[paste(sort(site),collapse="")]]
-          if(length(site) == 0){
-            site <- "N"
-          }
-          site}))
-        ASR[[as.character(i)]] <- paste(seq_ar,collapse="")
-      }else{
-        ASR[[as.character(i)]] <- pat
+    
+    # CGJ 5/23/24 for the phangorn update (3.0.0) and so it passes win builder devel
+    if("prob" %in% names(seqs_pars)){
+      ASR <- list()
+      tip_data <- data.frame(seqs_pars$data)
+      for(i in 1:ncol(tip_data)){
+        if(asr == "seq"){
+          sub_seq <- paste0(toupper(tip_data[,i]))
+          seq_ar <- unlist(lapply(1:length(sub_seq), function(x){
+            site <- sub_seq[x]
+            site <- alakazam::DNA_IUPAC[[paste(sort(site), collapse = "")]]
+            if(length(site) == 0){
+              site <- "N"
+            }
+            site}))
+          ASR[[as.character(i)]] <- paste(seq_ar,collapse="")
+        } else{
+          ASR[[as.character(i)]] <- paste0(toupper(tip_data[,i]), collapse = "")
+        }
+      }
+      nASR <- length(ASR)
+      internal_seqs <- seqs_pars$prob
+      for(i in 1:length(unique(internal_seqs$Node))){
+        sub <- internal_seqs[internal_seqs$Node == unique(internal_seqs$Node)[i],]
+        if(asr == "seq"){
+          sub_seq <- paste0(toupper(sub$State))
+          seq_ar <- unlist(lapply(1:length(sub_seq), function(x){
+            site <- sub_seq[x]
+            site <- alakazam::DNA_IUPAC[[paste(sort(site), collapse = "")]]
+            if(length(site) == 0){
+              site <- "N"
+            }
+            site}))
+          ASR[[as.character(nASR + i)]] <- paste(seq_ar,collapse="")
+        } else{
+          ASR[[as.character(nASR + i)]] <- paste0(toupper(sub$State), collapse = "")
+        }
+      }
+    } else{ # if they are using an older version of phangorn keep it the same
+      ASR <- list()
+      for(i in 1:max(tree$edge)){
+        patterns <- t(subset(seqs_pars, i)[[1]])
+        pat <- patterns[,attr(seqs_pars,"index")]
+        if(asr == "seq"){
+          thresh <- pat > asr_thresh
+          acgt <- c("A","C","G","T")
+          seq_ar <- unlist(lapply(1:ncol(pat),function(x){
+            site <- acgt[thresh[,x]]
+            site <- alakazam::DNA_IUPAC[[paste(sort(site),collapse="")]]
+            if(length(site) == 0){
+              site <- "N"
+            }
+            site}))
+          ASR[[as.character(i)]] <- paste(seq_ar,collapse="")
+        }else{
+          ASR[[as.character(i)]] <- pat
+        }
       }
     }
+    
+
     tree$nodes <- lapply(1:length(tree$nodes),function(x){
       tree$nodes[[x]]$sequence <- ASR[[x]]
       tree$nodes[[x]]
@@ -905,23 +955,62 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
   if(asr != "none" && data_type=="DNA"){
     seqs_ml <- phangorn::ancestral.pml(fit,
                                        type="marginal",return="prob")
-    ASR <- list()
-    for(i in 1:max(tree$edge)){
-      patterns <- t(subset(seqs_ml, i)[[1]])
-      pat <- patterns[,attr(seqs_ml,"index")]
-      if(asr == "seq"){
-        thresh <- pat > asr_thresh
-        acgt <- c("A","C","G","T")
-        seq_ar <- unlist(lapply(1:ncol(pat),function(x){
-          site <- acgt[thresh[,x]]
-          site <- alakazam::DNA_IUPAC[[paste(sort(site),collapse="")]]
-          if(length(site) == 0){
-            site <- "N"
-          }
-          site}))
-        ASR[[as.character(i)]] <- paste(seq_ar,collapse="")
-      }else{
-        ASR[[as.character(i)]] <- pat
+    # CGJ 5/23/24 for the phangorn update (3.0.0) and so it passes win builder devel
+    if("prob" %in% names(seqs_ml)){
+      ASR <- list()
+      tip_data <- data.frame(seqs_ml$data)
+      for(i in 1:ncol(tip_data)){
+        if(asr == "seq"){
+          sub_seq <- paste0(toupper(tip_data[,i]))
+          seq_ar <- unlist(lapply(1:length(sub_seq), function(x){
+            site <- sub_seq[x]
+            site <- alakazam::DNA_IUPAC[[paste(sort(site), collapse = "")]]
+            if(length(site) == 0){
+              site <- "N"
+            }
+            site}))
+          ASR[[as.character(i)]] <- paste(seq_ar,collapse="")
+        } else{
+          ASR[[as.character(i)]] <- paste0(toupper(tip_data[,i]), collapse = "")
+        }
+      }
+      nASR <- length(ASR)
+      internal_seqs <- seqs_ml$prob
+      for(i in 1:length(unique(internal_seqs$Node))){
+        sub <- internal_seqs[internal_seqs$Node == unique(internal_seqs$Node)[i],]
+        if(asr == "seq"){
+          sub_seq <- paste0(toupper(sub$State))
+          seq_ar <- unlist(lapply(1:length(sub_seq), function(x){
+            site <- sub_seq[x]
+            site <- alakazam::DNA_IUPAC[[paste(sort(site), collapse = "")]]
+            if(length(site) == 0){
+              site <- "N"
+            }
+            site}))
+          ASR[[as.character(nASR + i)]] <- paste(seq_ar,collapse="")
+        } else{
+          ASR[[as.character(nASR + i)]] <- paste0(toupper(sub$State), collapse = "")
+        }
+      }
+    } else{ # if they are using an older version of phangorn keep it the same
+      ASR <- list()
+      for(i in 1:max(tree$edge)){
+        patterns <- t(subset(seqs_ml, i)[[1]])
+        pat <- patterns[,attr(seqs_ml,"index")]
+        if(asr == "seq"){
+          thresh <- pat > asr_thresh
+          acgt <- c("A","C","G","T")
+          seq_ar <- unlist(lapply(1:ncol(pat),function(x){
+            site <- acgt[thresh[,x]]
+            site <- alakazam::DNA_IUPAC[[paste(sort(site),collapse="")]]
+            if(length(site) == 0){
+              site <- "N"
+            }
+            site}))
+          ASR[[as.character(i)]] <- paste(seq_ar,collapse="")
+        }else{
+          ASR[[as.character(i)]] <- pat
+        }
       }
     }
     tree$nodes <- lapply(1:length(tree$nodes),function(x){
@@ -930,6 +1019,7 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
     })
   }
   tree <- rerootTree(tree,"Germline",verbose=0)
+  tree$parameters <- fit
   return(tree)
 }
 
@@ -1248,11 +1338,13 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
 #' @param    rseed      The random seed used for the parsimony inferences. This allows you to reproduce your results.
 #' @param    name       specifies the name of the output file
 #' @param    starting_tree specifies a user starting tree file name and path in Newick format
+#' @param    data_type  Specifies what format your data is in, DNA or AA
 #' @param    from_getTrees A logical that indicates if the desired starting tree is from getTrees and not a newick file
 #' @param    rm_files   remove temporary files?
 #' @param    asr        computes the marginal ancestral states of a tree
 #' @param    rep        Which repetition of the tree building is currently being run. Mainly for getBootstraps. 
 #' @param    dir        Where the output files are to be made. 
+#' @param    n_starts   Number of max parsimony starting trees (default is 10 pars + 10 random)
 #' @param    ...        Additional arguments (not currently used)
 #'
 #'
@@ -1260,8 +1352,9 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
 #'          containing reconstructed sequences.
 #' @export
 buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition = NULL, 
-                       rseed = 28, name = "run", starting_tree = NULL, 
-                       from_getTrees = FALSE, rm_files = TRUE, asr = TRUE, rep = 1, dir = NULL, ...){
+                       rseed = 28, name = "run", starting_tree = NULL, data_type = "DNA",
+                       from_getTrees = FALSE, rm_files = TRUE, asr = TRUE, rep = 1, dir = NULL,
+                       n_starts = NULL, ...){
   exec <- path.expand(exec)
   if(file.access(exec, mode=1) == -1) {
     stop("The file ", exec, " cannot be executed.")
@@ -1329,7 +1422,10 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
   
   command <- paste("--model", model, "--seed", rseed, "-msa", 
                    input_data, "-prefix", paste0(dir,"/", name), "--threads 1",
-                   "--force msa")
+                   "--data-type", data_type, "--force msa")
+  if(!is.null(n_starts)){
+    command <- paste0(command, " --tree pars{",n_starts,"}")
+  }
   if(!is.null(starting_tree)){
     if(from_getTrees){
       ape::write.tree(starting_tree, file.path(dir, paste0(name, "_og_starting_tree.tree")))
@@ -1377,7 +1473,8 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     ape::write.tree(tree, starting_tree)
     command <- paste("--model", model, "--seed", rseed, "-msa", 
                      input_data, "-prefix", paste0(dir,"/", name, "_asr"), "--threads 1",
-                     "--force msa --tree", starting_tree, "--ancestral")
+                     "--tree", starting_tree, "--ancestral", "data-type", data_type, 
+                     "--force msa")
     if(!is.null(partition)){
       old_command <- strsplit(command, "--seed")[[1]][2]
       new_model <- paste("--model", file.path(dir, paste0(name, "_partition.txt")), "--seed")
@@ -1394,7 +1491,7 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     })
     
     # check that topology is the same
-    asr_tree <- ape::read.tree(file.path(dir, paste0(name, "_asr.raxml.ancestralTree")))
+    asr_tree <- ape::read.tree(file.path(dir, paste0(name, "_asr.raxml.ancestralTree"))) # is not rooted
     difference_check <- phangorn::RF.dist(asr_tree, tree)
     if(difference_check > 0){
       stop("ASR failed. Retry")
@@ -1423,71 +1520,69 @@ buildRAxML <- function(clone, seq = "sequence", exec, model = 'GTR', partition =
     tree$parameters <- results
     # get the ASR for the nodes
     nnodes <- length(unique(c(tree$edge[,1],tree$edge[,2])))
-    tree$nodes <- rep(list(sequence=NULL),times=nnodes)
-    tipseqs <- clone@data[[clone@phylo_seq]]
-    names(tipseqs) <- clone@data$sequence_id
-    if(clone@phylo_seq == "sequence"){
-      tipseqs <- c(tipseqs,"Germline"=clone@germline)
-    }else if(clone@phylo_seq == "lsequence"){
-      tipseqs <- c(tipseqs,"Germline"=clone@lgermline)
-    }else if(clone@phylo_seq == "hlsequence"){
-      tipseqs <- c(tipseqs,"Germline"=clone@hlgermline)
-    }else{
-      stop(paste("phylo_seq not recognized",clone@clone))
-    }
-    if(sum(!tree$tip.label %in% names(tipseqs)) != 0 ||
-       sum(!names(tipseqs) %in% tree$tip.label) != 0){
-      stop(paste("Tip sequences do not match in clone",clone))
-    }
-    # add in the ASR sequences 
-    # get the tree
-    written_tree <- readLines(file.path(dir, paste0(name, "_asr.raxml.ancestralTree")))
-    # split the tree by node input to get the order for internal nodes
-    node_order <- strsplit(written_tree, "Node")
-    full_order <- c()
-    for(i in 2:length(node_order[[1]])){
-      tobind <- gsub("\\:.*", "", node_order[[1]][i])
-      tobind <- gsub("\\;", "", tobind)
-      full_order <- append(full_order, tobind)
-    }
     asr_seqs <- readLines(file.path(dir, paste0(name, "_asr.raxml.ancestralStates")))
-    asr_order <- strsplit(asr_seqs, "Node")
-    full_asr <- c()
-    for(i in 1:length(asr_order)){
-      tobind <- gsub("\\:.*", "", asr_order[[i]][2])
-      num_asr <- strsplit(tobind, "\t")
-      num_asr <- data.frame(node_num = num_asr[[1]][1], asr_seq = num_asr[[1]][2])
-      full_asr <- rbind(full_asr, num_asr)
+    # find the max node 
+    max_node <- strsplit(asr_seqs, "Node")
+    max_node <- length(max_node)
+    if(nnodes != length(tree$tip.label) + max_node){
+      stop("Internal node error")
     }
-    # add the ASR seq by whichever node is called in the tree
-    for(i in 1:length(full_order)){
-      node_num <- full_order[i]
-      asr_seq <- full_asr$asr_seq[full_asr$node_num == node_num]
-      tree$nodes[[(ape::Ntip(tree)+i)]]$sequence <- asr_seq
-    }
+    tree$nodes <- rep(list(sequence=NULL),times=nnodes)
+
+    #KBH 10/9/24 corrected for ASR matching - please check below
+    asr_seqs <- strsplit(asr_seqs, split="\t")
+    seqs <- sapply(asr_seqs, function(x)x[2])
+    names <- sapply(asr_seqs, function(x)x[1])
+    asr_seqs <- seqs
+    names(asr_seqs) <- names
     
-    for(i in 1:length(tree$tip.label)){
-      tip <- tree$tip.label[i]
-      if(tip != "Germline"){
-        seq_num <- which(clone@data$sequence_id == tip)
-        if(seq == "hlsequence"){
-          tree$nodes[i]$sequence <- clone@data$hlsequence[seq_num]
-        } else if(seq == "sequence"){
-          tree$nodes[i]$sequence <- clone@data$sequence[seq_num]
-        }else{
-          tree$nodes[i]$sequence <- clone@data$lsequence[seq_num]
+    ASR <- list()
+    for(i in 1:nnodes){
+      if(i <= length(tree$tip.label)){
+        # find the ith value in tip.label (assiocated with 1-x on the edge table)
+        seq_id <- tree$tip.label[i]
+        if(seq_id == "Germline"){
+          if(clone@phylo_seq == "sequence"){
+            asr_seq <- clone@germline
+          } else if(clone@phylo_seq == "hlsequence"){
+            asr_seq <- clone@hlgermline
+          } else{
+            asr_seq <- clone@lgermline
+          }
+        } else{
+          asr_seq <- clone@data[[clone@phylo_seq]][which(clone@data$sequence_id == seq_id)]
         }
-      }else{
-        if(seq == "hlsequence"){
-          tree$nodes[i]$sequence <- clone@hlgermline
-        } else if(seq == "sequence"){
-          tree$nodes[i]$sequence <- clone@germline
-        }else{
-          tree$nodes[i]$sequence <- clone@lgermline
-        }
+        names(asr_seq) <- seq_id
+      } else{
+        label <- tree$node.label[i - length(tree$tip.label)]
+        asr_seq <- asr_seqs[label]
+        asr_seq <- gsub("-", "N", asr_seq)
       }
+      ASR[[i]] <- asr_seq
     }
+
+    tree$nodes <- lapply(1:length(tree$nodes),function(x){
+      tree$nodes[[x]]$sequence <- ASR[[x]]
+      tree$nodes[[x]]
+    })
+    
     tree <- rerootTree(tree, "Germline", verbose=0)
+    
+    # CGJ 10/15/24 
+    # find the indx of the 'Germline' nodes
+    indx <- unlist(lapply(1:length(tree$nodes), function(x){
+      if(names(tree$nodes[[x]]$sequence) == "Germline"){
+        return(x)
+      }
+    }))
+    if(length(indx > 1)){
+      # rename the second one to "UCA"
+      names(tree$nodes[[indx[2]]]$sequence) <- "UCA"
+    }
+    # update the node labels to reflect
+    tree$node.label <- c("UCA", tree$node.label)
+    
+    
   }else {
     tree <- rerootTree(ape::unroot(ape::read.tree(file.path(dir,paste0(name, ".raxml.bestTree")))), "Germline", verbose = 0)
     tree$germid <- paste0(clone@clone, "_GERM")
@@ -1744,7 +1839,7 @@ rerootTree <- function(tree, germline, min=0.001, verbose=1){
 #' @param    trait      trait to use for parsimony models (required if
 #'                      \code{igphyml} specified)
 #' @param    build      program to use for tree building (pratchet, pml,
-#'                      dnapars, dnaml, igphyml)
+#'                      dnapars, dnaml, igphyml, raxml)
 #' @param    exec       location of desired phylogenetic executable
 #' @param    igphyml    optional location of igphyml executible for parsimony
 #' @param    id         unique identifer for this analysis (required if
@@ -1781,10 +1876,9 @@ rerootTree <- function(tree, germline, min=0.001, verbose=1){
 #' For examples and vignettes, see https://dowser.readthedocs.io
 #'
 #' @seealso \link{formatClones}, \link{findSwitches}, \link{buildPhylo},
-#' \link{buildPratchet}, \link{buildPML}, \link{buildIgphyml}
+#' \link{buildPratchet}, \link{buildPML}, \link{buildIgphyml}, \link{buildRAxML}
 #' @examples
 #' data(ExampleClones)
-#'
 #' trees <- getTrees(ExampleClones[10,])
 #' plotTrees(trees)[[1]]
 #'
@@ -1807,7 +1901,6 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
   if(!is.null(dir)){
     dir <- path.expand(dir)
   }
-
   data <- clones$data
   if(!inherits(data, "list")){
     data <- list(data)
@@ -1819,7 +1912,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
     warning("palette option is deprecated in getTrees, specify in plotTrees")
     palette <- NULL
   }
-
+  
   # make sure all sequences and germlines within a clone are the same length
   unlist(lapply(data, function(x){
     if(x@phylo_seq == "hlsequence"){
@@ -1837,6 +1930,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
                   x@clone," are not equal."))
     }
   }))
+
   if(fixtrees){
     if(!"trees" %in% names(clones)){
       stop("trees column must be specified if fixtrees=TRUE")
@@ -1848,6 +1942,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
   }else{
     trees <- NULL
   }
+
   if(is.null(id)){
     id <- "sample"
   }
@@ -1902,6 +1997,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
       x@data$sequence_id <- paste0(x@data$sequence_id,"_",x@data[[trait]])
       x})
   }
+
   if(build=="dnapars" || build=="igphyml" || build=="dnaml" || !is.null(igphyml) || build=="raxml"){
     if(!is.null(dir)){
       if(!dir.exists(dir)){
@@ -1929,11 +2025,13 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
   }
 
   reps <- as.list(1:length(data))
+
   if(is.null(seq)){
     seqs <- unlist(lapply(data,function(x)x@phylo_seq))
   }else{
     seqs <- rep(seq,length=length(data))
   }
+  
   if(build=="dnapars" || build=="dnaml"){
     trees <- parallel::mclapply(reps,function(x)
       tryCatch(buildPhylo(data[[x]],
@@ -2307,6 +2405,108 @@ getNodeSeq <- function(data, node, tree=NULL, clone=NULL, gaps=TRUE){
   }
   names(seqs) <- loci
   return(seqs)
+}
+
+#' Return all tip and internal node sequences
+#' 
+#' \code{getNodeSeq} Sequence retrieval function.
+#' @param    data    a tibble of \code{airrClone} objects with reconstructed trees, 
+#'                   the output of \link{getTrees}
+#' @param    imgt_gaps    include a column of gapped sequences?
+#' @return   A tibble with sequence information for each tip and internal node
+#' of a set of trees.
+#'
+#' @details
+#' Column names:
+#' clone_id = clone id 
+#' node_id = name of node, either the sequence name if a tip or Node<number> if internal node
+#' node = node number in tree. Tips are nodes 1:<number of tips>.
+#' locus = locus of sequence
+#' sequence = ungapped sequence, either observed for tips or reconstructed for internal nodes
+#' sequence_alignment = sequence with IMGT gaps (optional)
+#'  
+#' @seealso \link{getTrees} \link{getNodeSeq}
+#' @export
+getAllSeqs <- function(data, imgt_gaps=TRUE){
+  if(!"trees" %in% names(data)){
+    stop("No trees found")
+  }
+  results <- dplyr::tibble()
+  for(i in 1:nrow(data)){
+    tree <- data$trees[[i]]
+    nodes <- length(tree$nodes)
+    tips <- length(tree$tip.label)
+    seqs <- lapply(1:nodes, function(x){
+      getNodeSeq(data, clone=data$clone_id[i], node=x, gaps=FALSE)
+    })
+    if(imgt_gaps){
+      seqs_alignment <- lapply(1:nodes, function(x){
+        getNodeSeq(data, clone=data$clone_id[i], node=x, gaps=TRUE)
+      })
+    }
+    names(seqs) = paste0("Node",1:nodes)
+    names(seqs)[1:tips] <- tree$tip.label
+    loci <- unique(unlist(lapply(seqs, function(x)names(x))))
+    for(locus in loci){
+      sequence <- sapply(seqs, function(x)x[[locus]])
+      names(sequence) <- NULL
+      temp <- dplyr::tibble(clone_id=data$clone_id[i], 
+        node_id=names(seqs), node=1:length(seqs), locus = locus, sequence=sequence)
+      if(imgt_gaps){
+        sequence_alignment <- sapply(seqs_alignment, function(x)x[[locus]])
+        names(sequence_alignment) <- NULL
+        temp$sequence_alignment <- sequence_alignment
+      }
+      results <- dplyr::bind_rows(results, temp)
+    }
+  }
+  results 
+}
+
+#' Write a fasta file of sequences
+#' \code{readFasta} reads a fasta file
+#' @param    df        dataframe of sequences
+#' @param    id        Column name of sequence ids
+#' @param    seq       Column name of sequences
+#' @param    file      FASTA file for output
+#' @param    imgt_gaps Keep IMGT gaps if present?
+#' @param    columns   vector of column names to append to sequence id
+#'
+#' @return   File of FASTA formatted sequences
+#' @export
+dfToFasta <- function(df, file, id="sequence_id", seq="sequence",
+  imgt_gaps=FALSE, columns=NULL){
+  if(!"data.frame" %in% class(df)){
+    stop("df must be a data.frame or tibble")
+  }
+  if(!id %in% names(df)){
+    stop(id, " column not found in df")
+  }
+  if(!seq %in% names(df)){
+    stop(seq, " column not found in df")
+  }
+
+  if(!imgt_gaps){
+    seqs <- gsub("\\.","",df[[seq]])
+  }else{
+    seqs <- df[[seq]]
+  }
+
+  if(is.null(columns)){
+    ids <- df[[id]]
+  }else{
+    if(sum(!columns %in% names(df)) > 0){
+      nf <- columns[!columns %in% names(df)]
+      stop(paste(nf, collapse=","), " not found in df")
+    }
+    ids <- df[[id]]
+    for(column in columns){
+      values <- paste0("|", column, "=", df[[column]])
+      ids <- paste0(ids, values)
+    }
+  }
+  lines <- paste0(">", ids, "\n", seqs)
+  writeLines(lines, con=file)
 }
 
 #' Deprecated! Use getNodeSeq
@@ -3211,4 +3411,63 @@ getBootstraps <- function(clones, bootstraps,
     }
   }
   return(clones)
+}
+
+
+#' Exports the phylogentic trees from the airrClone object
+#' 
+#' \code{exportTrees}   Exports phylogenetic trees
+#' @param clones         tibble \code{airrClone} objects, the output of 
+#'                      \link{formatClones}
+#' @param filepath      The file path for where the trees will be saved
+#' @param tree_column   The name of the column that contains the trees
+#' @param ...           additional arguments to be passed
+#'  
+#' @export
+exportTrees <- function(clones, filepath, tree_column = "trees", ...){
+  # check to see if the trees column is there 
+  if(alakazam::checkColumns(clones, tree_column)){
+    ape::write.tree(phy = clones$trees, file = filepath, ...)
+  } else{
+    stop(paste(tree_column, "not found in the input airrClone object. Please",
+               "specify what column cotains the phylogentic trees."))
+  }
+  
+}
+
+#' Write the sequences used in tree building to a fasta format. If there are more 
+#' than one tree in airrClone output the sequence id will be followed by "|clone_id".
+#' 
+#' \code{writeCloneSequences}   Exports the sequences used in tree building. 
+#' @param clones         tibble \code{airrClone} objects, the output of 
+#'                      \link{formatClones}
+#' @param file       The file path and name of where the sequences will be saved
+#'  
+#' @export
+writeCloneSequences <- function(clones, file){
+  for(i in 1:nrow(clones)){
+    clone_id <- clones$clone_id[i]
+    # grab the germline 
+    if(clones$data[[i]]@phylo_seq == "sequence"){
+      germline <- clones$data[[i]]@germline
+    } else if(clones$data[[i]]@phylo_seq == "hlsequence"){
+      germline <- clones$data[[i]]@hlgermline
+    } else if(clones$data[[i]]@phylo_seq == "lsequence"){
+      germline <- clones$data[[i]]@lgermline
+    }
+    write(paste0(">Germline|", clone_id), file, append = TRUE)
+    write(germline, file, append = TRUE)
+    for(j in 1:nrow(clones$data[[i]]@data)){
+      seq_id <- clones$data[[i]]@data$sequence_id[j]
+      if(clones$data[[i]]@phylo_seq == "sequence"){
+        sequence <- clones$data[[i]]@data$sequence[j]
+      } else if(clones$data[[i]]@phylo_seq == "hlsequence"){
+        sequence <- clones$data[[i]]@data$hlsequence[j]
+      } else if(clones$data[[i]]@phylo_seq == "lsequence"){
+        sequence <- clones$data[[i]]@data$lsequence[j]
+      }
+      write(paste0(">", seq_id, "|", clone_id), file, append = TRUE)
+      write(sequence, file, append = TRUE)
+    }
+  }
 }

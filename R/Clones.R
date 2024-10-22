@@ -118,7 +118,7 @@ makeAirrClone <-
     
     if(chain=="HL"){
       check <- alakazam::checkColumns(data, c(cell,locus))
-      if (check != TRUE) { stop(check) }
+      if (!check) { stop(check) }
       if(is.null(heavy)){
         stop(paste("clone",unique(dplyr::pull(data,clone)),
                    "heavy chain loci ID must be specified if combining loci!"))
@@ -533,6 +533,8 @@ cleanAlignment <- function(clone){
   seq <- clone@phylo_seq
   if(seq == "hlsequence"){
     g <- strsplit(clone@hlgermline[1],split="")[[1]]
+    lg <- strsplit(clone@lgermline[1],split="")[[1]]
+    hg <- strsplit(clone@germline[1],split="")[[1]]
   }else if(seq == "sequence"){
     g <- strsplit(clone@germline[1],split="")[[1]]
   }else if(seq == "lsequence"){
@@ -540,17 +542,50 @@ cleanAlignment <- function(clone){
   }else{
     stop(paste(seq, "not a recognized sequence type"))
   }
-  sk <- strsplit(clone@data[[seq]],split="")
-  sites <- seq(1,length(g)-3,by=3)
-  ns <- c()
-  for(i in sites){ #for each codon site, tally number of NNN codons
-    l <- unlist(lapply(sk,function(x) paste(x[i:(i+2)],collapse="")=="NNN"))
-    ns <- c(ns,rep(sum(l),length=3))
+  if(seq == "hlsequence"){
+    sk <- strsplit(clone@data[[seq]],split="")
+    sites <- seq(1,length(g)-3,by=3)
+    sk_h <- strsplit(clone@data$sequence,split="")
+    sk_l <- strsplit(clone@data$lsequence,split="")
+    h_sites <- seq(1,length(hg)-3,by=3)
+    l_sites <- seq(1,length(lg)-3,by=3)
+    ns <- c()
+    for(i in sites){ #for each codon site, tally number of NNN codons
+      l <- unlist(lapply(sk,function(x) paste(x[i:(i+2)],collapse="")=="NNN"))
+      ns <- c(ns,rep(sum(l),length=3))
+    }
+    hns <- c()
+    for(i in h_sites){ #for each codon site, tally number of NNN codons
+      l <- unlist(lapply(sk_h,function(x) paste(x[i:(i+2)],collapse="")=="NNN"))
+      hns <- c(hns,rep(sum(l),length=3))
+    }
+    lns <- c()
+    for(i in l_sites){ #for each codon site, tally number of NNN codons
+      l <- unlist(lapply(sk_l,function(x) paste(x[i:(i+2)],collapse="")=="NNN"))
+      lns <- c(lns,rep(sum(l),length=3))
+    }
+  } else{
+    sk <- strsplit(clone@data[[seq]],split="")
+    sites <- seq(1,length(g)-3,by=3)
+    ns <- c()
+    for(i in sites){ #for each codon site, tally number of NNN codons
+      l <- unlist(lapply(sk,function(x) paste(x[i:(i+2)],collapse="")=="NNN"))
+      ns <- c(ns,rep(sum(l),length=3))
+    }
   }
+
   # remove uninformative sites from germline and data
   informative <- ns != length(sk)
   l <- lapply(sk,function(x) x=paste(x[informative],collapse=""))
   gm <- paste(g[informative],collapse="")
+  if(seq == "hlsequence"){
+    hinformative <- hns != length(sk_h)
+    hl <- lapply(sk_h,function(x) x=paste(x[hinformative],collapse=""))
+    hgm <- paste(hg[hinformative],collapse="")
+    linformative <- lns != length(sk_l)
+    ll <- lapply(sk_l,function(x) x=paste(x[linformative],collapse=""))
+    lgm <- paste(lg[linformative],collapse="")
+  }
   
   if(.hasSlot(clone,"locus")){
     clone@locus <- clone@locus[informative]
@@ -563,6 +598,10 @@ cleanAlignment <- function(clone){
   }
   if(seq == "hlsequence"){
     clone@hlgermline=gm
+    clone@lgermline=lgm
+    clone@germline=hgm
+    clone@data$lsequence=unlist(ll)
+    clone@data$sequence=unlist(hl)
   }else if(seq == "sequence"){
     clone@germline=gm
   }else if(seq == "lsequence"){
@@ -685,9 +724,12 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
     data <- do.call(rbind, data)
     if(nrow(data) != full_nrow){
       n_removed <- full_nrow - nrow(data)
-      warning(paste0("There was ", n_removed, " sequence(s) with an inframe stop codon",
+      warning(paste0("There were ", n_removed, " sequence(s) with an inframe stop codon",
       " and were removed. If you want to keep these sequences use the option filterstop=FALSE."))
     }
+  }
+  if(!clone %in% names(data)){
+    stop(clone," column not found.")
   }
   
   # CGJ 8/10/23
@@ -856,14 +898,17 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
     multi <- names(d[d > 1])
     if(length(multi) > 0){
       warning(paste("columns",paste(multi,collapse=" "),
-                    "contain multiple values per clone, flattening with comma"))
+                    "contain multiple values per clone, setting to character, flattening with comma"))
+      for(col in columns){
+        data[[col]] = as.character(data[[col]])
+      }
     }
     d <- data %>%
-      dplyr::select(!!rlang::sym(clone),columns) %>%
+      dplyr::select(!!rlang::sym(clone),dplyr::all_of(columns)) %>%
       dplyr::group_by(!!rlang::sym(clone)) %>%
       dplyr::summarize(dplyr::across(columns, colpaste))
     
-    m <- match(fclones[[clone]],d[[clone]])
+    m <- match(fclones$clone_id,d[[clone]])
     fclones[,columns] <- d[m,columns]
   }
   
@@ -1246,6 +1291,7 @@ getSubclones <- function(heavy, light, nproc=1, minseq=1,
 #'                        numeric value. All entries in this column should be identical 
 #'                        for any given clone.
 #' @param    nolight      string to use to indicate a missing light chain
+#' @param    pad_ends          pad sequences within a clone to same length?
 #'
 #' @return   a tibble containing the same data as inputting, but with the column clone_subgroup
 #' added. This column contains subgroups within clones that contain distinct light chain
@@ -1273,7 +1319,7 @@ getSubclones <- function(heavy, light, nproc=1, minseq=1,
 resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH",
                                id="sequence_id", seq="sequence_alignment",
                                clone="clone_id", cell="cell_id", v_call="v_call", j_call="j_call",
-                               junc_len="junction_length", nolight="missing"){
+                               junc_len="junction_length", nolight="missing", pad_ends=TRUE){
   
   subgroup <- "clone_subgroup"
 
@@ -1326,10 +1372,6 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
     hd <- dplyr::filter(heavy,!!rlang::sym(clone) == cloneid)
     ld <- dplyr::filter(light,!!rlang::sym(cell) %in% hd[[!!cell]])
     ld <- dplyr::filter(ld, !is.na(!!rlang::sym(cell)))
-    if(dplyr::n_distinct(nchar(hd[[seq]])) > 1){
-      warning(paste("Heavy chains different lengths, padding seq ends for clone",cloneid))
-      hd[[seq]] <- padSeqEnds(hd[[seq]])
-    }
     hd_sc <- hd[hd[[cell]] %in% ld[[cell]] & !is.na(hd[[cell]]),] # added is.na(cell) catch
     hd_bulk <- hd[!hd[[cell]] %in% ld[[cell]] | is.na(hd[[cell]]),]
     if(nrow(ld) == 0){
@@ -1344,6 +1386,12 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
       return(hd)
     }
     ltemp <- dplyr::filter(ld, !is.na(!!rlang::sym(cell)))
+    # CGJ 9/17/24
+    # make the gene level partiions be only gene level -- no allele
+    ltemp$temp_v <- ltemp[[v_call]]
+    ltemp$temp_j <- ltemp[[j_call]]
+    ltemp[[v_call]] <- alakazam::getGene(ltemp[[v_call]])
+    ltemp[[j_call]] <- alakazam::getGene(ltemp[[j_call]])
     ltemp[[clone]] <- -1
     ld <- dplyr::tibble()
     lclone <- 1
@@ -1397,6 +1445,13 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
                   collapse=",")
         }
       }
+      # CGJ 9/17/24
+      # update the include df to have proper v and j call and remove their temp cols
+      include[[v_call]] <- include$temp_v
+      include[[j_call]] <- include$temp_j
+      rm_indx <- which(colnames(include) %in% c("temp_v", "temp_j"))
+      include <- include[, -rm_indx]
+      
       ld <- dplyr::bind_rows(ld,include)
       ltemp <- dplyr::filter(ltemp,!(!!rlang::sym(cell) %in% ltemp[cvs,][[!!cell]]))
       lclone <- lclone + 1
@@ -1416,8 +1471,15 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
     comb[[subgroup]] <- as.integer(comb[[subgroup]])
     if(nrow(ld) != 0 & nrow(hd_bulk) != 0){
       for(sequence in 1:nrow(hd_bulk)){
-        rating <- sapply(hd_sc[[seq]], function(x)
-          alakazam::seqDist(x, hd_bulk[[seq]][sequence]))
+        # CGJ 8/6/24 -- updated to do the padding on the temp sequences
+        rating <- unlist(lapply(1:nrow(hd_sc), function(x){
+          temp <- rbind(hd_sc[x,], hd_bulk[sequence,])
+          if(nchar(temp[[seq]][1] != nchar(temp[[seq]][2]))){
+            temp <- alakazam::padSeqEnds(temp[[seq]])
+          }
+          value <- alakazam::seqDist(temp[1], temp[2])
+          return(value)
+        }))
         rating <- as.numeric(rating)
         # row number of heavy chain only df with lowest seq dist
         proper_index <- which(rating == min(rating))
@@ -1482,7 +1544,7 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
   },mc.cores=nproc)
   paired <- dplyr::bind_rows(paired)
   # remove the junction length from the vj_gene
-  paired$vj_gene <- gsub("\\;.", "", paired$vj_gene)
+  paired$vj_gene <- gsub("\\;.*", "", paired$vj_gene)
   return(paired)
 }
 

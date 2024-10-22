@@ -1,6 +1,3 @@
-## Functions for constructing clonal germline sequences
-## Based closely on CreateGermlines.py
-
 #' \code{readIMGT} read in IMGT database
 #' 
 #' Loads all reference germlines from an Immcantation-formatted IMGT database.
@@ -26,6 +23,7 @@ readIMGT <- function(dir, quiet=FALSE){
   sequences <- 0
   database <- list()
   files <- list.files(dir, full.names=TRUE)
+  files <- files[grepl("\\.fasta$|\\.fa$", files)]
   if(length(files) == 0){
     stop("No fasta files found in directory")
   }
@@ -613,6 +611,8 @@ buildClonalGermline <- function(receptors, references,
 #' @param data          AIRR-table containing sequences from one clone
 #' @param references    Full list of reference segments, see \link{readIMGT}
 #' @param locus         Name of the locus column in the input data
+#' @param trim_lengths  Remove trailing Ns from \code{seq} column if length different from germine?
+#' @param force_trim    Remove all characters from sequence if different from germline? (not recommended)
 #' @param nproc         Number of cores to use
 #' @param na.rm         Remove clones with failed germline reconstruction?
 #' @param seq           Column name for sequence alignment
@@ -653,7 +653,7 @@ buildClonalGermline <- function(receptors, references,
 #' imgt <- readIMGT(vdj_dir)
 #' db <- createGermlines(ExampleAirr[1,], imgt)
 #' @export
-createGermlines <- function(data, references, locus="locus",
+createGermlines <- function(data, references, locus="locus", trim_lengths=FALSE, force_trim=FALSE,
                             nproc=1, seq="sequence_alignment", v_call="v_call", d_call="d_call", 
                             j_call="j_call", amino_acid=FALSE,  id="sequence_id", clone="clone_id",
                             v_germ_start="v_germline_start", v_germ_end="v_germline_end", v_germ_length="v_germline_length",
@@ -665,9 +665,6 @@ createGermlines <- function(data, references, locus="locus",
     warning("No data provided!")
     return(data)
   }
-  if(sum(is.na(data[[clone]])) > 0){
-    stop("NA values in clone id column found, please remove.")
-  }
   if(locus %in% c("IGH", "IGK", "IGL")){
     stop(paste0("locus option now indicates locus column name, not value. Sorry for the change!",
                 " createGermlines now does all loci at once, so no need to separate by locus."))
@@ -677,7 +674,6 @@ createGermlines <- function(data, references, locus="locus",
     data[[locus]] = substr(data[[v_call]],1,3)
     warning(paste("Loci found:",unique(data[[locus]])))
   }
-  
   complete <- dplyr::tibble()
   required <- c(seq, id, clone, 
                 np1_length, np1_length, 
@@ -689,6 +685,9 @@ createGermlines <- function(data, references, locus="locus",
     stop(paste("Required columns not found in data:",
                paste(required[!required %in% names(data)],collapse=", ")))
   }
+  if(sum(is.na(data[[clone]])) > 0){
+    stop("NA values in clone id column found, please remove.")
+  }
   
   # check if there are "" in the d_call column instead of NAs CGJ 11/1/23
   data[[d_call]][data[[d_call]] == ""] <- NA
@@ -696,7 +695,7 @@ createGermlines <- function(data, references, locus="locus",
   if (has_dup_ids){
     stop("Sequence IDs are not unique!")
   }
-  
+
   if(!v_germ_length %in% names(data)){
     data[[v_germ_length]] <- data[[v_germ_end]] - data[[v_germ_start]] + 1
   }
@@ -725,6 +724,48 @@ createGermlines <- function(data, references, locus="locus",
   if(sum(is.na(data[[v_germ_length]])) > 0 | 
      sum(is.na(data[[j_germ_length]])) > 0){
     stop("Missing values in v_germ_length or j_germ_length")
+  }
+
+
+  # check if sequence_alignments contain trailing Ns and trim if desired
+  # trailing Ns frequently cause length errors downstream
+  # KBH 8/5/24
+  g_lengths <- sapply(1:nrow(data), function(x)sum(data[[v_germ_length]][x], data[[np1_length]][x], 
+    data[[d_germ_length]][x], data[[np2_length]][x], data[[j_germ_length]][x], na.rm=TRUE))
+  g_diffs <- nchar(data[[seq]]) - g_lengths
+  if(sum(g_diffs > 0) > 0){
+    if(!trim_lengths && !force_trim){
+     warning(sum(g_diffs)," sequence lengths longer than predicted germlines, consider setting ",
+      "trim_lengths=TRUE if germlines fail")
+    }else{
+      too_short <- data[g_diffs > 0,]
+      too_short_diffs <- g_diffs[g_diffs > 0]
+      too_short_starts <- nchar(too_short[[seq]]) - too_short_diffs
+      # short_seqs <- strsplit(too_short[[seq]], split="")
+      to_cut <- sapply(1:nrow(too_short), function(x){
+        substr(too_short[[seq]][x],too_short_starts[x] + 1, nchar(too_short[[seq]][x]))
+      })
+      atcg <- grepl("[ATCG]",to_cut)
+      too_short[[seq]][!atcg] <- sapply(1:nrow(too_short[!atcg,]), function(x){
+        substr(too_short[[seq]][!atcg][x], 1, too_short_starts[!atcg][x])
+      })
+      cat("Trimmed ",sum(!atcg),
+        "sequences that differed from predicted germline only by non-ATCG characters.",
+        sum(atcg), "differed by ATCG characters.\n")
+      if(sum(atcg) > 0 && !force_trim){
+        cat("Can remove ATCG characters if force_trim=TRUE, but this may indicate misalignment of you data.\n")
+      }
+      if(force_trim){
+        cat("Forcibly removing ATCG characters from", sum(atcg), "sequences\n")
+        too_short[[seq]][atcg] <- sapply(1:nrow(too_short[atcg,]), function(x){
+          substr(too_short[[seq]][atcg][x], 1, too_short_starts[atcg][x])
+        })
+      }
+      m <- match(data[[id]], too_short[[id]])
+      seqs <- too_short[[seq]][m]
+      seqs[is.na(m)] <- data[[seq]][is.na(m)]
+      data[[seq]] <- seqs
+    }
   }
   unique_clones <- unique(data[,unique(c(clone,fields)),drop=F])
   data[['tmp_row_id']] <- 1:nrow(data)

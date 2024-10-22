@@ -13,11 +13,13 @@ buildRAxML(
   rseed = 28,
   name = "run",
   starting_tree = NULL,
+  data_type = "DNA",
   from_getTrees = FALSE,
   rm_files = TRUE,
   asr = TRUE,
   rep = 1,
   dir = NULL,
+  n_starts = NULL,
   ...
 )
 }
@@ -39,6 +41,8 @@ scaled, unlinked, and linked}
 
 \item{starting_tree}{specifies a user starting tree file name and path in Newick format}
 
+\item{data_type}{Specifies what format your data is in, DNA or AA}
+
 \item{from_getTrees}{A logical that indicates if the desired starting tree is from getTrees and not a newick file}
 
 \item{rm_files}{remove temporary files?}
@@ -48,6 +52,8 @@ scaled, unlinked, and linked}
 \item{rep}{Which repetition of the tree building is currently being run. Mainly for getBootstraps.}
 
 \item{dir}{Where the output files are to be made.}
+
+\item{n_starts}{Number of max parsimony starting trees (default is 10 pars + 10 random)}
 
 \item{...}{Additional arguments (not currently used)}
 }

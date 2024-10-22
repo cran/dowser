@@ -15,4 +15,15 @@ sequence = getNodeSeq(trees, node=50, clone=3128)
 
 print(sequence)
 
+# Get all sequences as a data frame
+all_sequences = getAllSeqs(trees)
+
+head(all_sequences)
+
+
+## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
+#  
+#  # Save all sequences as a fasta file
+#  dfToFasta(all_sequences, file="all_sequences.fasta", id="node_id", columns=c("clone_id","locus"))
+#  
 

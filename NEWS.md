@@ -1,7 +1,21 @@
+Version 2.3 October 18, 2024
+-------------------------------------------------------------------------------
+
++ Fixed bugs in and added features to buildRAxML
++ Fixed bugs in resolveLightChains
++ Added trimming option to createGermlines
+
+Version 2.2.1 May 23, 2024
+-------------------------------------------------------------------------------
+
++ Updated correlationTest
++ Fixed bugs in buildRAxML
++ Added ASR check for version changes in phangorn
+
 Version 2.2.0 May 7, 2024
 -------------------------------------------------------------------------------
 
-+ changed BioStrings dependency to pwalign dependency
++ added suggestion for pwalign dependency
 + set filter_stop=FALSE in formatClones for better speed
 
 Version 2.1.0 December 21, 2023
@@ -16,7 +30,7 @@ Version 2.0.1: October 25, 2023
 -------------------------------------------------------------------------------
 
 + Fixed bugs in buildRAxML and getTrees
-+ Added an option to formatClones to consider light chain traits  
++ Added an option to formatClones to consider light chain traits
 
 Version 2.0.0: September 8, 2023
 -------------------------------------------------------------------------------

@@ -13,7 +13,8 @@ writeLineageFile(
   trait = NULL,
   empty = TRUE,
   partition = "single",
-  heavy = "IGH"
+  heavy = "IGH",
+  ...
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ writeLineageFile(
 \item{partition}{how to partition omegas}
 
 \item{heavy}{name of heavy chain locus}
+
+\item{...}{additional arguments to be passed}
 }
 \value{
 Name of created lineage file.

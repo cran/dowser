@@ -11,7 +11,7 @@ Provides a set of functions for inferring, visualizing, and analyzing B cell phy
 Useful links:
 \itemize{
   \item \url{https://dowser.readthedocs.io}
-  \item Report bugs at \url{https://bitbucket.org/kleinstein/dowser/issues}
+  \item Report bugs at \url{https://github.com/immcantation/dowser/issues}
 }
 
 }
@@ -20,12 +20,14 @@ Useful links:
 
 Authors:
 \itemize{
+  \item Cole Jensen \email{cole.jensen@yale.edu}
+  \item Jessie Fielding \email{jessie.jo.fielding@dartmouth.edu}
+  \item Hunter Melton \email{hunter.j.melton@dartmouth.edu}
   \item Steven Kleinstein \email{steven.kleinstein@yale.edu} [copyright holder]
 }
 
 Other contributors:
 \itemize{
-  \item Cole Jensen \email{cole.jensen@yale.edu} [contributor]
   \item Susanna Marquez \email{susanna.marquez@yale.edu} [contributor]
   \item Jason Vander Heiden \email{jason.vanderheiden@gmail.com} [contributor]
 }

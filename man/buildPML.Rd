@@ -15,16 +15,20 @@ buildPML(
   data_type = "DNA",
   optNni = TRUE,
   optQ = TRUE,
+  optEdge = TRUE,
   verbose = FALSE,
   resolve_random = TRUE,
   quiet = 0,
-  rep = NULL
+  rep = NULL,
+  dir = NULL,
+  id = NULL,
+  asrp = FALSE
 )
 }
 \arguments{
 \item{clone}{\code{airrClone} object}
 
-\item{seq}{sequece column in \code{airrClone} object}
+\item{seq}{sequence column in \code{airrClone} object}
 
 \item{sub_model}{substitution model to use}
 
@@ -42,6 +46,8 @@ buildPML(
 
 \item{optQ}{Optimize Q matrix}
 
+\item{optEdge}{Optimize edge lengths}
+
 \item{verbose}{Print error messages as they happen?}
 
 \item{resolve_random}{randomly resolve polytomies?}
@@ -49,6 +55,12 @@ buildPML(
 \item{quiet}{amount of rubbish to print to console}
 
 \item{rep}{current bootstrap replicate (experimental)}
+
+\item{dir}{A directory to save the codon table}
+
+\item{id}{The identifier value}
+
+\item{asrp}{Get the codon table?}
 }
 \value{
 \code{phylo} object created by phangorn::optim.pml with nodes

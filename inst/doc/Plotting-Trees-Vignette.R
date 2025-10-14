@@ -115,9 +115,9 @@ treeplots = lapply(plots, function(x)
 treeplots[[2]]
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
-#  plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
-#  
-#  # you can also pass arguments you would pass to grDevices::pdf, like width and height
-#  # here, we plot 4 trees per page (2 rows, 2 columns)
-#  treesToPDF(plots, file="trees.pdf", nrow=2, ncol=2)
+# plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
+# 
+# # you can also pass arguments you would pass to grDevices::pdf, like width and height
+# # here, we plot 4 trees per page (2 rows, 2 columns)
+# treesToPDF(plots, file="trees.pdf", nrow=2, ncol=2)
 

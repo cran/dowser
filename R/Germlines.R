@@ -8,14 +8,14 @@
 #' @return List of lists, leading to IMGT-gapped nucleotide sequences.
 #' Structure of object is list[[locus]][[segment]]
 #' locus refers to locus (e.g. IGH, IGK, TRA)
-#' segment refers to gene segment caegory (V, D, or J)
+#' segment refers to gene segment category (V, D, or J)
 #' @details Input directory must be formatted to Immcantation standard.
 #' See https://changeo.readthedocs.io/en/stable/examples/igblast.html for example
 #' of how to download.
 #' @examples
 #' # vdj_dir contains a minimal example of reference germlines 
 #' # (IGHV3-11*05, IGHD3-10*01 and IGHJ5*02)
-#' # which are the gene assignments for ExamapleDb[1,]
+#' # which are the gene assignments for ExampleDb[1,]
 #' vdj_dir <- system.file("extdata", "germlines", "imgt", "human", "vdj", package="dowser")
 #' imgt <- readIMGT(vdj_dir)
 #' @export
@@ -216,7 +216,7 @@ stitchVDJ <- function(receptor, v_seq, d_seq, j_seq,
 #  Returns:
 #    str: string defining germline regions
 #' \link{stitchRegions} Similar to \link{stitchVDJ} but with segment IDs 
-#' instead of nulecotides
+#' instead of nucleotides
 #' @param receptor      row from AIRR-table containing sequence of interest
 #' @param v_seq         germline V segment sequence from \link{getGermline}
 #' @param d_seq         germline D segment sequence from \link{getGermline}
@@ -586,7 +586,8 @@ buildClonalGermline <- function(receptors, references,
                                         amino_acid=amino_acid,...),error=function(e)e)
     if("error" %in% class(germlines)){
       warning(paste("Clone",unique(receptors[[clone]]),
-                    "germline reconstruction error."))
+                    "germline reconstruction error.\n",
+                    germlines))
       germlines  <- list()
       germlines$full <- NA
       germlines$dmask <- NA
@@ -611,7 +612,7 @@ buildClonalGermline <- function(receptors, references,
 #' @param data          AIRR-table containing sequences from one clone
 #' @param references    Full list of reference segments, see \link{readIMGT}
 #' @param locus         Name of the locus column in the input data
-#' @param trim_lengths  Remove trailing Ns from \code{seq} column if length different from germine?
+#' @param trim_lengths  Remove trailing Ns from \code{seq} column if length different from germline?
 #' @param force_trim    Remove all characters from sequence if different from germline? (not recommended)
 #' @param nproc         Number of cores to use
 #' @param na.rm         Remove clones with failed germline reconstruction?
@@ -770,7 +771,7 @@ createGermlines <- function(data, references, locus="locus", trim_lengths=FALSE,
   unique_clones <- unique(data[,unique(c(clone,fields)),drop=F])
   data[['tmp_row_id']] <- 1:nrow(data)
   complete <- parallel::mclapply(1:nrow(unique_clones), function(x){
-    sub <- right_join(data, unique_clones[x,,drop=F], by=c(clone,fields))
+    sub <- dplyr::right_join(data, unique_clones[x,,drop=F], by=c(clone,fields))
     if(verbose > 0){
       print(unique(sub[[clone]]))
     }
@@ -816,3 +817,5 @@ createGermlines <- function(data, references, locus="locus", trim_lengths=FALSE,
   }
   results
 }
+
+

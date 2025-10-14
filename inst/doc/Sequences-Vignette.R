@@ -22,8 +22,8 @@ head(all_sequences)
 
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
-#  
-#  # Save all sequences as a fasta file
-#  dfToFasta(all_sequences, file="all_sequences.fasta", id="node_id", columns=c("clone_id","locus"))
-#  
+# 
+# # Save all sequences as a fasta file
+# dfToFasta(all_sequences, file="all_sequences.fasta", id="node_id", columns=c("clone_id","locus"))
+# 
 

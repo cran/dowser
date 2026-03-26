@@ -39,7 +39,7 @@ To obtain all observed and reconstructed sequences for all clones, use the `getA
 
 You can  save the output of `getAllSeqs` as a fasta file using the `dfToFasta` function.
 
-```{r, eval=TRUE, warning=FALSE, message=FALSE}
+```{r, eval=FALSE, warning=FALSE, message=FALSE}
 library(dowser)
 
 data(ExampleClones)

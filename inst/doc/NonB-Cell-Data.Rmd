@@ -35,7 +35,7 @@ If sequences are from a single lineage, the only requirement for non-B cell data
 
 In the code block below, we show how trees can be built using data with only sequence IDs, sequences, and germline sequences.
 
-```{r, eval=TRUE, warning=FALSE, message=FALSE}
+```{r, eval=FALSE, warning=FALSE, message=FALSE}
 library(dowser)
 
 data(ExampleAirr)

@@ -87,6 +87,7 @@ getTimeTreesIterate <- function(clones, iterations=10, ess_cutoff=200,
 #' @param    quiet      amount of rubbish to print to console
 #' @param    rm_temp    remove temporary files (default=TRUE)
 #' @param    trees      optional list of starting trees, either phylo objects or newick strings
+#' @param    germline_trait_value     trait value for germline, default '?' for ambiguous
 #' @param    ...        Additional arguments passed to tree building programs
 #'
 #' @return   A tibble with a column of \code{phylo} objects and \code{parameters} column
@@ -100,7 +101,7 @@ getTimeTrees <- function(clones, template, beast, dir, id, time,
         burnin=10, trait=NULL, resume_clones=NULL, nproc=1, quiet=0, 
         rm_temp=FALSE, include_germline=TRUE, seq="sequence", 
         germline_range=c(-10000,10000), java=TRUE, seed=NULL, log_target=10000, 
-        tree_states=FALSE, trees=NULL, ...){
+        tree_states=FALSE, trees=NULL, germline_trait_value='?', ...) {
 
   if(is.null(beast)){
     stop("BEAST bin directory must be specified for this build option")
@@ -208,6 +209,7 @@ getTimeTrees <- function(clones, template, beast, dir, id, time,
                             log_target=log_target,
                             tree_states=tree_states,
                             trees=trees,
+                            germline_trait_value=germline_trait_value,
                             ...
                             ),error=function(e)e)
 
@@ -283,6 +285,7 @@ getTimeTrees <- function(clones, template, beast, dir, id, time,
 #' @param    low_ram    run with less memory (slightly slower)  
 #' @param    trees                    optional list of starting trees, either phylo objects or newick strings
 #' @param    start_edge_length        edge length to use for all branches in starting tree 
+#' @param    germline_trait_value     trait value for germline, default '?' for ambiguous
 #' @param    ...      Additional arguments for XML writing functions
 #'
 #' @return   The input clones tibble with an additional column for the bootstrap replicate trees.
@@ -294,7 +297,7 @@ buildBeast <- function(data, beast, time, template, dir, id, mcmc_length = 10000
                    log_every="auto",include_germline = TRUE, nproc = 1, quiet=0, 
                    burnin=10, low_ram=TRUE, germline_range=c(-10000,10000), java=TRUE, 
                    seed=NULL, log_target=10000, trees=NULL, tree_states=FALSE, 
-                   start_edge_length=100, start_date=NULL, max_start_date=NULL,...) {
+                   start_edge_length=100, start_date=NULL, max_start_date=NULL,germline_trait_value='?',...) {
 
   beast <- path.expand(beast)
   beast_exec <- file.path(beast,"beast")
@@ -364,6 +367,7 @@ buildBeast <- function(data, beast, time, template, dir, id, mcmc_length = 10000
       trees=trees,
       start_date=start_date, 
       max_start_date=max_start_date,
+      germline_trait_value=germline_trait_value,
       ...)
 
   xml_filepath <- xml_filepath[!is.na(xml_filepath)]
@@ -600,16 +604,17 @@ create_max_height_prior <- function(clone, id, max_start_date) {
 #' @param    trait_data_type          optional data type for the trait
 #' @param    isSet                    is this a traitSet (TRUE) or a trait (FALSE)?
 #' @param    include_germline_as_tip  include the germline as a tip
+#' @param    germline_value           trait value for germline, default '?' for ambiguous
 #'
 #' @return   String of XML of the trait or traitSet
 #'  
 create_traitset <- function(clone, trait_name, column, id, trait_data_type=NULL, 
-  isSet=FALSE, include_germline_as_tip=FALSE) {
+  isSet=FALSE, include_germline_as_tip=FALSE, germline_value='?') {
 
   all_traits <- paste(clone@data$sequence_id, clone@data[[column]], 
     collapse=",\n", sep="=")
   if (include_germline_as_tip) {
-    all_traits <- paste(all_traits, paste0('Germline','=', '?'), sep=",\n")
+    all_traits <- paste(all_traits, paste0('Germline','=', germline_value), sep=",\n")
   }
   tagname <- "trait" 
   if (isSet) {
@@ -708,6 +713,7 @@ create_starting_tree <- function(clone, id, tree, include_germline_as_tip, tree_
 #' @param    start_edge_length        edge length to use for all branches in starting tree
 #' @param    start_date               starting date to use as prior, in forward time
 #' @param    max_start_date           max starting date to use as prior, in forward time
+#' @param    germline_trait_value     trait value for germline, default '?' for ambiguous
 #' @param    ...                      additional arguments for XML writing functions
 #'
 #' @return   File path of the written XML file
@@ -716,7 +722,7 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
   trait_data_type=NULL, template=NULL, mcmc_length=1000000, log_every=1000, replacements=NULL, 
   include_germline_as_root=FALSE, include_germline_as_tip=FALSE, 
   germline_range=c(-10000,10000), tree=NULL, trait_list=NULL, log_every_trait=10, tree_states=FALSE,
-  start_edge_length=100, start_date=NULL, max_start_date=NULL,...) {
+  start_edge_length=100, start_date=NULL, max_start_date=NULL, germline_trait_value='?', ...) {
   
   kwargs <- list(...)
 
@@ -763,7 +769,7 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
   }
   if (!is.null(trait)) {
     sample_trait <- create_traitset(clone, "newTrait", trait, id, 
-      trait_data_type, isSet=TRUE, include_germline_as_tip=include_germline_as_tip)
+      trait_data_type, isSet=TRUE, include_germline_as_tip=include_germline_as_tip, germline_value=germline_trait_value)
     # replace the ${TRAIT} placeholder with the sample trait
     xml <- gsub("\\$\\{TRAIT\\}", sample_trait, xml)
     if (any(grepl("\\$\\{TRAIT_NAME\\}", xml))) {
@@ -805,10 +811,15 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
     # can add other potential operators here
     operators <- ""
     if (include_germline_as_tip) {
-      
+      if(any(grepl("GermlineRootTree", xml))) {
+        warning("GermlineRootTree operator found in template, skipping TipDatesRandomWalker operator addition")
+        operators <- ""
+      }
+      else {
       operators <-  
       paste0('<operator id="TipDatesRandomWalker.01" windowSize="1" spec="beast.base.evolution.operator.TipDatesRandomWalker" taxonset="@germSet" tree="@Tree.t:',
         id, '_', clone@clone,'" weight="1.0"/>\n')
+      }
     }
     
     xml <- gsub("\\$\\{OPERATORS\\}", operators, xml)
@@ -880,6 +891,16 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
       stop("Could not find <init> tag in the template file")
     }
   }
+  
+  curr_replace_name = "NODES_TYPE_INIT"
+  if (any(grepl("\\$\\{NODES_TYPE_INIT\\}", xml))) {
+    if (!curr_replace_name %in% names(kwargs)) {
+      nodes_type_init = 0
+    } else {
+      nodes_type_init = kwargs[[curr_replace_name]]
+    }
+    xml <- gsub(paste0("\\$\\{", curr_replace_name, "\\}"), nodes_type_init, xml)
+  }
 
   matches <- unlist(regmatches(xml, gregexpr("\\$\\{([^}]+)\\}", xml)))
   template_variables <- unique(sub("\\$\\{([^}]+)\\}", "\\1", matches))
@@ -941,6 +962,7 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
 #' @param    start_edge_length        edge length to use for all branches in starting tree
 #' @param    start_date               starting date to use as prior, in forward time
 #' @param    max_start_date           max starting date to use as prior, in forward time
+#' @param    germline_trait_value     trait value for germline, default '?' for ambiguous
 #' @param    ...                      additional arguments for XML writing functions
 #'
 #' @return   File paths of the written XML files
@@ -949,7 +971,7 @@ write_clones_to_xmls <- function(data, id, trees=NULL, time=NULL, trait=NULL, te
   outfile=NULL, replacements=NULL, trait_list=NULL, 
   mcmc_length=1000000, log_every=1000, include_germline_as_root=FALSE, 
   include_germline_as_tip=FALSE, germline_range=c(-10000,10000), 
-  tree_states=FALSE, start_edge_length=100, start_date=NULL, max_start_date=NULL,
+  tree_states=FALSE, start_edge_length=100, start_date=NULL, max_start_date=NULL, germline_trait_value='?',
   ...) {
 
   kwargs <- list(...)
@@ -996,6 +1018,7 @@ write_clones_to_xmls <- function(data, id, trees=NULL, time=NULL, trait=NULL, te
                      tree_states=tree_states,
                      start_date=start_date,
                      max_start_date=max_start_date,
+                     germline_trait_value=germline_trait_value,
                      ...))
   }
   return(xmls)
@@ -1140,7 +1163,13 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
       stop(paste("Couldn't read in ",treefile))
     }
     l <- readLines(logoutfile)
-    log <- read.table(text=l[4:(length(l)-1)], header=TRUE)
+    # just in case there are extra lines at the top of the log file, find the line where the parameter table starts
+    item_lines <- grep("item", l)
+    if (length(item_lines) == 1) {
+      log <- read.table(text=l[(item_lines):(length(l)-1)], header=TRUE)
+    } else {
+      log <- read.table(text=l[4:(length(l)-1)], header=TRUE)
+    }
 
     # add parameter summary
     beast@info$parameters <- log

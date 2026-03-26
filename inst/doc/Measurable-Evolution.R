@@ -67,11 +67,11 @@
 #     geom_tippoint(aes(fill=timepoint), pch=21, size=2) +
 #     scale_fill_distiller(palette="RdYlBu")
 
-## ----eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE----------------------
-library(dowser)
-data(TimeTrees)
-TimeTrees = TimeTrees[order(TimeTrees$p),]
-plotTrees(TimeTrees)[[1]] + 
-    ggtree::geom_tippoint(aes(fill=timepoint), pch=21, size=2) +
-    scale_fill_distiller(palette="RdYlBu")
+## ----eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE---------------------
+# library(dowser)
+# data(TimeTrees)
+# TimeTrees = TimeTrees[order(TimeTrees$p),]
+# plotTrees(TimeTrees[1,])[[1]] +
+#     ggtree::geom_tippoint(aes(fill=timepoint), pch=21, size=2) +
+#     ggplot2::scale_fill_distiller(palette="RdYlBu")
 

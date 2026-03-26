@@ -50,8 +50,8 @@
 #'                          right_join rowwise
 #'                          summarize summarize_at
 #'                          transmute rename
-#' @importFrom Biostrings   pairwiseAlignment
 #' @importFrom airr		    read_rearrangement
+#' @importFrom pwalign		pairwiseAlignment
 #' @importFrom treeio       read.beast
 
 NULL

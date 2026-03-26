@@ -1174,6 +1174,7 @@ buildPML <- function(clone, seq="sequence", sub_model="GTR", gamma=FALSE, asr="s
 #' @param    asrc       Intermediate sequence cutoff probability
 #' @param    splitfreqs Calculate codon frequencies on each partition separately?
 #' @param    asrp       Run ASRp?
+#' @param    trunkl     Set trunk length to specified number
 #' @param    make_gyrep Create the grep file?
 #' @param    ...        Additional arguments (not currently used)
 #'
@@ -1194,7 +1195,7 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
                          id=NULL, rseed=NULL, quiet=0, rm_files=TRUE, rm_dir=NULL, 
                          partition=c("single", "cf", "hl", "hlf", "hlc", "hlcf"),
                          omega=NULL, optimize="lr", motifs="FCH", hotness="e,e,e,e,e,e", 
-                         rates=NULL, asrc=0.95, splitfreqs=FALSE, asrp=FALSE, 
+                         rates=NULL, asrc=0.95, splitfreqs=FALSE, asrp=FALSE, trunkl=NULL,
                          make_gyrep=TRUE,...){
   warning("Dowser igphyml doesn't mask split codons!")
   partition <- match.arg(partition)
@@ -1308,10 +1309,14 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
   }else{
     ratestring = ""
   }
+  trunklength <- ""
+  if(!is.null(trunkl)){
+    trunklength <- paste("--trunkl",trunkl)
+  }
   command <- paste("--repfile",gyrep,
                    "--threads",nproc,"--omega",omega,"-o",optimize,"--motifs",motifs,
                    "--hotness",hotness,"-m HLP --run_id hlp --oformat tab --ASRc",asrc,
-                   ratestring,splitf,rseed,log)
+                   trunklength,ratestring,splitf,rseed,log)
   params <- list(igphyml,command,stdout=TRUE,stderr=TRUE)
   if(quiet > 2){
     print(paste(params,collapse=" "))
@@ -1343,8 +1348,8 @@ buildIgphyml <- function(clone, igphyml, trees=NULL, nproc=1, temp_path=NULL,
                      "--threads 1 --omega", omega,
                      "-o", optimize, 
                      "--motifs", motifs, 
-                     "--hotness", hotness,
-                     "-m HLP --run_id hlp --oformat tab --ASRp")
+                     "--hotness", hotness, trunklength,
+                     "-m HLP --run_id hlp --oformat tab --ASRp", log)
     params <- list(igphyml,command,stdout=TRUE,stderr=TRUE)
     if(quiet > 2){
       print(paste(params,collapse=" "))
@@ -2162,6 +2167,10 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
     repeats <- paste(unique(names(clone_counts)[clone_counts > 1]), collapse=" ")
     stop(paste("Clone IDs not unique. Repeated names:", repeats))
   }
+  if(!is.null(igphyml) && check_divergence){
+    warning("Divergence check not run (no intermediate seqs reconstructed) if option igphyml != NULL")
+    check_divergence <- FALSE
+  }
 
   # make sure all sequences and germlines within a clone are the same length
   unlist(lapply(data, function(x){
@@ -2374,6 +2383,17 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
                            rm_files=rm_temp, rm_dir=rm_dir, states=states, 
                            palette=palette, ...)
     
+    edges <- rbind(sapply(trees, function(x){
+      c(x$name, x$edge_type)
+    }))
+    etype <- edges[2,]
+    names(etype) <- edges[1,]
+
+    mtrees <- lapply(mtrees, function(x){
+      x$edge_type <- etype[x$name]
+      x
+    })
+
     # remove trait value from tips
     mtrees <- lapply(mtrees,function(x){
       ids <- strsplit(x$tip.label,split="_")
@@ -2382,7 +2402,7 @@ getTrees <- function(clones, trait=NULL, id=NULL, dir=NULL,
       x$tip.label[x$tip.label == x$name] <- "Germline"
       x
     })
-    
+
   }else{
     mtrees <- trees
   }

@@ -23,6 +23,7 @@ write_clones_to_xmls(
   start_edge_length = 100,
   start_date = NULL,
   max_start_date = NULL,
+  germline_trait_value = "?",
   ...
 )
 }
@@ -62,6 +63,8 @@ write_clones_to_xmls(
 \item{start_date}{starting date to use as prior, in forward time}
 
 \item{max_start_date}{max starting date to use as prior, in forward time}
+
+\item{germline_trait_value}{trait value for germline, default '?' for ambiguous}
 
 \item{...}{additional arguments for XML writing functions}
 }

@@ -29,15 +29,14 @@
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 # plotTrees(clones)[[1]]+geom_tiplab()+xlim(0,0.35)
 
-## ----eval=TRUE, warning=FALSE, message=FALSE, echo=FALSE----------------------
-library(dowser)
-library(ggtree)
-# Load data instead of running IgPhyML
-data(ExampleMixedClones)
-
-ExampleMixedClones$trees <- ExampleMixedClones$igphyml_partitioned_trees
-
-plotTrees(ExampleMixedClones)[[1]] + geom_tiplab() +xlim(0,0.35)
+## ----eval=FALSE, warning=FALSE, message=FALSE, echo=FALSE---------------------
+# library(dowser)
+# # Load data instead of running IgPhyML
+# data(ExampleMixedClones)
+# 
+# ExampleMixedClones$trees <- ExampleMixedClones$igphyml_partitioned_trees
+# 
+# plotTrees(ExampleMixedClones[1,])[[1]] + ggtree::geom_tiplab() + ggtree::xlim(0,0.35)
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 # 
@@ -48,9 +47,9 @@ plotTrees(ExampleMixedClones)[[1]] + geom_tiplab() +xlim(0,0.35)
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 # plotTrees(clones)[[1]]+geom_tiplab()+xlim(0, 0.12)
 
-## ----eval=TRUE, warning=FALSE, message=FALSE, echo=FALSE----------------------
-data(ExampleMixedClones)
-# change the tree names
-ExampleMixedClones$trees <- ExampleMixedClones$raxml_partitioned_trees
-plotTrees(ExampleMixedClones)[[1]] + geom_tiplab() + xlim(0, 0.12)
+## ----eval=FALSE, warning=FALSE, message=FALSE, echo=FALSE---------------------
+# data(ExampleMixedClones)
+# # change the tree names
+# ExampleMixedClones$trees <- ExampleMixedClones$raxml_partitioned_trees
+# plotTrees(ExampleMixedClones[1,])[[1]] + ggtree::geom_tiplab() + ggtree::xlim(0, 0.12)
 

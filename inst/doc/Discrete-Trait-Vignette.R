@@ -40,11 +40,11 @@
 # # show internal node (edge) predictions based on maximum parsimony
 # plotTrees(trees, tips=trait, nodes=TRUE, palette="Set1")[[1]]
 
-## ----eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE----------------------
-library(dowser)
-# Load data instead of running phylip
-data(BiopsyTrees)
-plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
+## ----eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE---------------------
+# library(dowser)
+# # Load data instead of running phylip
+# data(BiopsyTrees)
+# plotTrees(BiopsyTrees[1,], tips="biopsy", nodes=TRUE, palette="Set1")
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 # # the location of the igphyml executable
@@ -160,9 +160,9 @@ plotTrees(BiopsyTrees, tips="biopsy", nodes=TRUE, palette="Set1")[[1]]
 # # show internal node (edge) predictions based on maximum parsimony
 # plotTrees(trees, tips=trait, nodes=TRUE, palette="Paired", ambig="grey")[[1]]
 
-## ----eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE----------------------
-data(IsotypeTrees)
-plotTrees(IsotypeTrees, tips="c_call", nodes=TRUE, palette="Paired", ambig="grey")[[1]]
+## ----eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE---------------------
+# data(IsotypeTrees)
+# plotTrees(IsotypeTrees[1,], tips="c_call", nodes=TRUE, palette="Paired", ambig="grey")
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
 # # Downsample each tree to a tip-to-switch ratio of 10 instead of 20

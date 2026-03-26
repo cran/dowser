@@ -92,8 +92,8 @@ print(0.0003686277)
 #   TRAIT_RATE_SIGMA_2 = 0.001,
 #   RATE_INDICATORS = "1 0",
 #   TRANSITION_RATE_ALPHA_1 = 0.1,
-#   TRANSITION_RATE_ALPHA_2 = 1.0,
-#   TRANSITION_RATE_BETA_1  = 0.1,
+#   TRANSITION_RATE_BETA_1  = 1.0,
+#   TRANSITION_RATE_ALPHA_2 = 0.1,
 #   TRANSITION_RATE_BETA_2  = 1.0,
 #   log_target   = 2000,
 #   mcmc_length  = 1e6,
@@ -115,21 +115,21 @@ cat(tree_height_param)
 ## ----logged-parameters, eval=FALSE--------------------------------------------
 # print(mixed_trees$parameters[[2]]$item)
 
-## ----echo=FALSE---------------------------------------------------------------
-logged_items <- c("posterior", "likelihood","prior", 
-                  "treeLikelihood.tyche_eo_est_2", "TreeHeight", 
-                  "rateIndicator.type.1", "rateIndicator.type.2", 
-                  "relativeGeoRates.type.1", "relativeGeoRates.type.2",
-                  "typeSwitchClockRate", "kappa.tyche_eo_est_2",
-                  "BayesianSkyline", "bPopSizes.1", "bPopSizes.2", "bPopSizes.3",
-                  "bPopSizes.4", "bPopSizes.5", "bGroupSizes.1",
-                  "bGroupSizes.2", "bGroupSizes.3", "bGroupSizes.4",
-                  "bGroupSizes.5", "freqParameter.tyche_eo_est_2.1",
-                  "freqParameter.tyche_eo_est_2.2",
-                  "freqParameter.tyche_eo_est_2.3", 
-                  "freqParameter.tyche_eo_est_2.4", "traitfrequencies.type.1",
-                  "traitfrequencies.type.2", "typeLinkedRates.1", "typeLinkedRates.2")
-print(logged_items)
+## ----echo=FALSE, eval=FALSE---------------------------------------------------
+# logged_items <- c("posterior", "likelihood","prior",
+#                   "treeLikelihood.tyche_eo_est_2", "TreeHeight",
+#                   "rateIndicator.type.1", "rateIndicator.type.2",
+#                   "relativeGeoRates.type.1", "relativeGeoRates.type.2",
+#                   "typeSwitchClockRate", "kappa.tyche_eo_est_2",
+#                   "BayesianSkyline", "bPopSizes.1", "bPopSizes.2", "bPopSizes.3",
+#                   "bPopSizes.4", "bPopSizes.5", "bGroupSizes.1",
+#                   "bGroupSizes.2", "bGroupSizes.3", "bGroupSizes.4",
+#                   "bGroupSizes.5", "freqParameter.tyche_eo_est_2.1",
+#                   "freqParameter.tyche_eo_est_2.2",
+#                   "freqParameter.tyche_eo_est_2.3",
+#                   "freqParameter.tyche_eo_est_2.4", "traitfrequencies.type.1",
+#                   "traitfrequencies.type.2", "typeLinkedRates.1", "typeLinkedRates.2")
+# print(logged_items)
 
 ## ----read-beast-output, eval=FALSE--------------------------------------------
 # mixed_trees <- readBEAST(clones, dir="temp", id="tyche_eo_est", beast=beast, trait=trait)

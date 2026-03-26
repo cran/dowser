@@ -31,6 +31,7 @@ buildBeast(
   start_edge_length = 100,
   start_date = NULL,
   max_start_date = NULL,
+  germline_trait_value = "?",
   ...
 )
 }
@@ -86,6 +87,8 @@ buildBeast(
 \item{start_date}{Starting date of time tree if desired}
 
 \item{max_start_date}{Maximum starting date of time tree if desired}
+
+\item{germline_trait_value}{trait value for germline, default '?' for ambiguous}
 
 \item{...}{Additional arguments for XML writing functions}
 }

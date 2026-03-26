@@ -1,7 +1,7 @@
 Package: dowser
 Type: Package
-Version: 2.4.0
-Date: 2025-10-13
+Version: 2.4.1
+Date: 2026-03-25
 Authors@R: c(
     person("Kenneth", "Hoehn", email = "kenneth.b.hoehn@dartmouth.edu", role = c("aut", "cre")),
     person("Cole", "Jensen", email = "cole.jensen@yale.edu", role = "aut"),
@@ -29,19 +29,19 @@ LazyData: true
 BuildVignettes: true
 VignetteBuilder: knitr
 Encoding: UTF-8
-Depends: R (>= 4.0), ggplot2 (>= 3.4.0)
+Depends: R (>= 4.4), ggplot2 (>= 3.4.0)
 biocViews:
-Imports: airr, alakazam (>= 1.1.0), ape (>= 5.6), Biostrings, dplyr (>=
-        1.0), ggtree, graphics, gridExtra, markdown, methods, phangorn
-        (>= 2.7.1), phylotate, RColorBrewer, rlang, shazam (>= 1.1.1),
-        stats, stringr, tidyselect, tidyr, utils, treeio
-Suggests: knitr, rmarkdown, testthat, pwalign, BiocManager
+Imports: airr, alakazam (>= 1.1.0), ape (>= 5.6), dplyr (>= 1.0),
+        ggtree, graphics, gridExtra, markdown, methods, phangorn (>=
+        2.7.1), phylotate, RColorBrewer, rlang, shazam (>= 1.1.1),
+        stats, stringr, tidyselect, tidyr, utils, pwalign, treeio
+Suggests: knitr, rmarkdown, testthat, BiocManager
 RoxygenNote: 7.3.3
 Collate: 'Data.R' 'Dowser.R' 'Clones.R' 'Classes.R' 'Plotting.R'
         'Germlines.R' 'Statistics.R' 'TreeFunctions.R'
         'TimeTreesFunctions.R' 'zzz.R'
 NeedsCompilation: no
-Packaged: 2025-10-14 15:07:36 UTC; kenneth
+Packaged: 2026-03-26 18:38:05 UTC; kenneth
 Author: Kenneth Hoehn [aut, cre],
   Cole Jensen [aut],
   Jessie Fielding [aut],
@@ -51,4 +51,4 @@ Author: Kenneth Hoehn [aut, cre],
   Steven Kleinstein [aut, cph]
 Maintainer: Kenneth Hoehn <kenneth.b.hoehn@dartmouth.edu>
 Repository: CRAN
-Date/Publication: 2025-10-14 22:20:07 UTC
+Date/Publication: 2026-03-26 19:50:02 UTC

@@ -795,6 +795,9 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
     }
     data <- data[!ptcs,]
   }
+  if(sum(data[[id]] == "Germline") > 0){
+    stop("'Germline' may not be used as a sequence id.")
+  }
   if(!v_call %in% names(data) && !j_call %in% names(data) && !junc_len %in% names(data)){
       print(paste("v_call, j_call, and junc_len not found in data. Using non B cell mode\n.",
         "Setting use_regions to FALSE."))
@@ -810,6 +813,9 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
 
   if(!clone %in% names(data)){
     stop(clone," column not found.")
+  }
+  if(dup_singles && minseq > 1){
+    warning("dup_singles: Singleton clones will be removed unless minseq=1.")
   }
   
   # CGJ 8/10/23
@@ -1002,8 +1008,8 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
 #' @param    s               (subject) aligned input sequence (sequence_alignment)
 #' @param    keep_alignment  store q and s alignments
 #' @param    keep_insertions return removed insertion sequences?
-#' @param    gap_opening      gap opening penalty (Biostrings::pairwiseAlignment)
-#' @param    gap_extension    gap extension penalty (Biostrings::pairwiseAlignment)
+#' @param    gap_opening      gap opening penalty (pwalign::pairwiseAlignment)
+#' @param    gap_extension    gap extension penalty (pwalign::pairwiseAlignment)
 #' @param    mask            if FALSE, don't mask codons
 #' @return   A list with split codons masked, if found (sequence_masked).
 #'
@@ -1015,7 +1021,7 @@ formatClones <- function(data, seq="sequence_alignment", clone="clone_id",
 #' subject_alignment contains subject sequence aligned to query (q) sequence
 #' query_alignment contains query sequence aligned to subject (q) sequence
 #' sequence_masked will be NA if frameshift or alignment error detected/
-#' @seealso  \link{maskSequences}, Biostrings::pairwiseAlignment.
+#' @seealso  \link{maskSequences}, pwalign::pairwiseAlignment.
 #' 
 #' @examples
 #' s = "ATCATCATC..."
@@ -1061,19 +1067,9 @@ maskCodons <- function(id, q, s, keep_alignment=FALSE, gap_opening=5,
   sg <- gsub("---", "XXX", sg)
   
   # perform global alignment
-  if (packageVersion("BiocManager") >= "1.30.20") {
-    bioc_ver <- as.character(BiocManager::version())
-    has_bioc_3_19 <- utils::compareVersion(bioc_ver, "3.19") >= 0
-  } else {
-    has_bioc_3_19 <- FALSE
-  }
-  if(has_bioc_3_19){
     n <- pwalign::pairwiseAlignment(q, sg, type="global",
                                        gapOpening=gap_opening, gapExtension=gap_extension)
-  } else{
-    n <- Biostrings::pairwiseAlignment(q, sg, type="global",
-                                       gapOpening=gap_opening, gapExtension=gap_extension)
-  }
+
   qa <- as.character(n@pattern)
   sa <- as.character(n@subject)
   if(keep_alignment){
@@ -1220,7 +1216,7 @@ maskCodons <- function(id, q, s, keep_alignment=FALSE, gap_opening=5,
 #' insertions column will be returned if keep_insertions=TRUE, contains a
 #' comma-separated list of each <position in query alignment>-<sequence>. See example.
 #' in masking_note.
-#' @seealso  \link{maskCodons}, Biostrings::pairwiseAlignment.
+#' @seealso  \link{maskCodons}, pwalign::pairwiseAlignment.
 #' 
 #' @export
 maskSequences <- function(data,  sequence_id = "sequence_id", sequence = "sequence",
@@ -1479,8 +1475,8 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
     # make the gene level partitions be only gene level -- no allele
     ltemp$temp_v <- ltemp[[v_call]]
     ltemp$temp_j <- ltemp[[j_call]]
-    ltemp[[v_call]] <- alakazam::getGene(ltemp[[v_call]])
-    ltemp[[j_call]] <- alakazam::getGene(ltemp[[j_call]])
+    ltemp[[v_call]] <- alakazam::getGene(ltemp[[v_call]], first=FALSE)
+    ltemp[[j_call]] <- alakazam::getGene(ltemp[[j_call]], first=FALSE)
     ltemp[[clone]] <- -1
     ld <- list()
     lclone <- 1

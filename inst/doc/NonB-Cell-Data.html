@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kenneth B. Hoehn" />
 
-<meta name="date" content="2025-10-14" />
+<meta name="date" content="2026-03-26" />
 
 <title>Using data from non-B cells</title>
 
@@ -443,7 +443,7 @@ pre code {
 
 <h1 class="title toc-ignore">Using data from non-B cells</h1>
 <h4 class="author">Kenneth B. Hoehn</h4>
-<h4 class="date">2025-10-14</h4>
+<h4 class="date">2026-03-26</h4>
 
 </div>
 
@@ -458,9 +458,9 @@ pre code {
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>ExampleAirr <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">select</span>(dplyr<span class="sc">::</span><span class="fu">filter</span>(ExampleAirr, clone_id<span class="sc">==</span><span class="st">&quot;3128&quot;</span>),</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a> sequence_id, sequence_alignment, germline_alignment)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>clones <span class="ot">&lt;-</span> <span class="fu">formatClones</span>(ExampleAirr, <span class="at">germ=</span><span class="st">&quot;germline_alignment&quot;</span>)</span></code></pre></div>
-<pre><code>## [1] &quot;v_call, j_call, and junc_len not found in data. Using non B cell mode\n. Setting use_regions to FALSE.&quot;</code></pre>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>trees <span class="ot">&lt;-</span> <span class="fu">getTrees</span>(clones)</span></code></pre></div>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>clones <span class="ot">&lt;-</span> <span class="fu">formatClones</span>(ExampleAirr, <span class="at">germ=</span><span class="st">&quot;germline_alignment&quot;</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>trees <span class="ot">&lt;-</span> <span class="fu">getTrees</span>(clones)</span></code></pre></div>
 <p>Note that if specified <code>v_call</code>, <code>j_call</code>, and <code>junction_length</code> columns are not found in the input data.frame, the options <code>use_regions</code> will be set to false, as it is only for BCR sequences. If not already present, the <code>clone_id</code> and <code>locus</code> columns will be added to the dataframe with values 0 and “N”, respectively.</p>
 <p>When using <code>getTimeTrees</code> or <code>getTimeTreesIterate</code>, a meaninful germline is not required. Instead, you can set a <code>germline_alignment</code> which is series of N nucleotides the same length as the sequences in the sequence_alignment column, and set <code>include_germline=FALSE.</code></p>
 

@@ -7,56 +7,176 @@
 #' \code{getTimeTreesIterate} Iteratively resume getTimeTrees til convergence.
 #' @param    clones     a tibble of \code{airrClone} objects, the output of
 #'                      \link{formatClones}
+#' @param    template   XML template
+#' @param    beast      location of beast binary directory (beast/bin)
+#' @param    dir        directory where temporary files will be placed.
+#' @param    id         unique identifer for this analysis
+#' @param    time       Name of sample time column        
+#' @param    burnin     Burnin percent (default 10)                 
+#' @param    trait      Trait column to be used         
+#' @param    nproc      Number of cores for parallelization. At most 1 core/tree can be used.
+#' @param    posterior  Read un full distribution of parameters and trees? Can be "none" to just have
+#'                      summary objects, "all" to have parameters, trees, and trees_with_traits, or a vector with the desired
+#'                      combination of "parameters", "trees_with_traits", and "trees".
+#' @param    quiet      amount of rubbish to print to console
 #' @param    iterations Maximum number of times to resume MCMC chain
 #' @param    ess_cutoff Minimum number of ESS for all parameters
 #' @param    ignore     Vector of parameters to ignore for ESS calculation
 #' @param    quiet      quiet notifications if > 0
+#' @param    continue   If TRUE, will check for iteration folder and resume from last iteration if found (default FALSE)
+#' @param    asr          Log ancestral sequences?
+#' @param    low_ram    run with less memory (slightly slower)  
+#' @param    trim_ids    remove last _ group from tips?      
 #' @param    ...        Additional arguments for getTimeTrees
 #'
+#' @details
+#' 
+#' For a full list of options (of which there are many more), see \code{getTimeTrees}
+#' 
 #' @return   A tibble of \code{tidytree} and \code{airrClone} objects.
 #'
 #' @details
 #' For examples and vignettes, see https://dowser.readthedocs.io
 #'
 #' @export
-getTimeTreesIterate <- function(clones, iterations=10, ess_cutoff=200,
-  ignore = c("traitfrequencies"), quiet=0, ...){
+getTimeTreesIterate <- function(clones, template, beast, dir, id, time,
+  iterations=10, ess_cutoff=200, burnin=10,
+  ignore = c("traitfrequencies"), continue=FALSE, 
+  posterior=c("none","all","parameters","trees_with_traits","trees"), 
+  trait=NULL, nproc=1, quiet=0, asr=FALSE, low_ram=TRUE, trim_ids=FALSE,...){
 
   resume <- NULL
   iter <- 0
+
+  # check for iteration folder if resuming
+  if(!is.null(continue) && continue){
+    info <- setUpIterateResume(clones, dir=dir, id=id, ...)
+    iter <- info$iteration
+    rds <- info$clones_path
+    if(!is.null(rds)){
+      clones <- readRDS(rds)
+    }
+    if(iter > 0) {
+      resume <- getClonesToResume(clones, ignore=ignore, ess_cutoff=ess_cutoff, quiet=quiet)
+    }
+  }
+
   while((length(resume) > 0 || iter == 0 ) && iter < iterations){
         
         if(quiet < 1){
           print(paste("Starting iteration", iter))
         }
 
-        clones <- getTimeTrees(clones, resume_clones=resume, ...)
+        clones <- getTimeTrees(clones, resume_clones=resume, posterior="none", template=template,
+            dir=dir, id=id, beast=beast, burnin=burnin, time=time, 
+          trait=trait, quiet=quiet, nproc=nproc, asr=asr, trim_ids=trim_ids,
+          low_ram=low_ram, ...)
 
-        params <- clones$parameters
-        for(regex in ignore){
-            params <- lapply(params, function(x){
-                dplyr::filter(x, !grepl(regex, !!rlang::sym("item")))
-                })
-        }
-        
-        clones$below_ESS <- sapply(params, 
-          function(x)sum(x$ESS[!x$item %in% ignore] < ess_cutoff, na.rm=TRUE))
-        if(quiet < 1){
-          print(clones$below_ESS)
-          ess_items <- unlist(sapply(params, function(x)x$item[x$ESS[!x$item %in% ignore] < ess_cutoff]))
-          if(length(ess_items) > 0){
-            print(table(ess_items))
-          }
-        }
-    
-        resume <- dplyr::filter(clones, !!rlang::sym("below_ESS") > 0)$clone_id
+        resume <- getClonesToResume(clones, ignore=ignore, ess_cutoff=ess_cutoff)
+        saveIteration(clones, iter, dir=dir, id=id, ...)
         iter <- iter + 1
     }
     if(iter == iterations & length(resume) != 0){
       warning(paste(paste(resume, collapse=","), "failed to converge after",
         iterations, "iterations"))
     }
+    # cleanUpIterateResume(...)
+
+    # add in final readBEAST with full posterior options if specified
+    if(!"none" %in% posterior){
+      clones <- readBEAST(clones=clones, dir=dir, id=id, beast=beast, burnin=burnin, 
+        trait=trait, quiet=quiet, nproc=nproc, posterior=posterior, asr=asr, 
+        low_ram=low_ram, trim_ids=trim_ids)
+    }
     return(clones)
+}
+
+cleanUpIterateResume <- function(dir, id, ...){
+  iter_dir <- file.path(dir, paste0("iterations_", id))
+  if(dir.exists(iter_dir)){
+    unlink(iter_dir, recursive=TRUE)
+  }
+}
+
+getClonesToResume <- function(clones, ignore, ess_cutoff, quiet=0){
+    params <- clones$parameters
+    for(regex in ignore){
+        params <- lapply(params, function(x){
+            dplyr::filter(x, !grepl(regex, !!rlang::sym("item")))
+            })
+    }
+      
+    clones$below_ESS <- sapply(params, 
+      function(x)sum(x$ESS[!x$item %in% ignore] < ess_cutoff, na.rm=TRUE))
+    if(quiet < 1){
+      print(clones$below_ESS)
+      ess_items <- unlist(sapply(params, function(x)x$item[x$ESS[!x$item %in% ignore] < ess_cutoff]))
+      if(length(ess_items) > 0){
+        print(table(ess_items))
+      }
+    }
+    resume <- dplyr::filter(clones, !!rlang::sym("below_ESS") > 0)$clone_id
+    return(resume)
+}
+
+saveIteration <- function(clones, iter, dir, id, ...){
+  iter_dir <- file.path(dir, paste0("iterations_", id))
+  if(!dir.exists(iter_dir)){
+    dir.create(iter_dir)
+  }
+  curr_iter_dir <- file.path(iter_dir, paste0("iteration_", iter))
+  if(!dir.exists(curr_iter_dir)){
+    dir.create(curr_iter_dir)
+  }
+  saveRDS(clones, file.path(iter_dir, paste0("rds_", iter, ".rds")))
+  iter_files <- list.files(dir)
+  iter_files <- iter_files[grepl(id, iter_files) & !grepl("iterations", iter_files)]
+  for (f in iter_files) {
+    file.copy(file.path(dir, f), file.path(curr_iter_dir, f))
+  }
+}
+
+setUpIterateResume <- function(clones, dir, id, ...){
+  # this should probably delete existing files in the main dir for clarity but
+  # i think that should be done in the main function
+  iter_dir <- file.path(dir, paste0("iterations_", id))
+  if(!dir.exists(iter_dir)){
+    dir.create(iter_dir)
+  }
+  iter_folder <- list.files(path = iter_dir)
+
+  if(length(iter_folder) > 0) {
+    # get the highest iteration number from the folder names, which should be in the format "iteration_X"
+    max_iter <- -1
+    for (iter in iter_folder) {
+      iter_num <- as.numeric(gsub("iteration_(.*)", "\\1", iter))
+      if(!is.na(iter_num)){
+        if (iter_num > max_iter) {
+          if (file.exists(file.path(iter_dir, paste0("rds_", iter_num, ".rds")))) {
+            max_iter <- iter_num
+          }
+        }
+      }
+    }
+    if (max_iter == -1){
+      return(list(iteration=0, clones_path=NULL))
+    }
+    # copy all the files from the max iteration folder to the main dir for resuming
+    last_iter_dir <- file.path(iter_dir, paste0("iteration_", max_iter))
+    iter_files <- list.files(path = last_iter_dir, full.names = TRUE)
+    iter_files <- iter_files[grepl(id, iter_files) & !grepl("iterations", iter_files)]
+    for(file in iter_files){
+      # delete existing file if we should overwrite it
+      unlink(file.path(dir, basename(file)))
+      file.copy(file, dir, overwrite = TRUE)
+    }
+    # re-read in the clones from the last iteration to get the resume clones
+    clones_path <- file.path(iter_dir, paste0("rds_", max_iter, ".rds"))
+    return(list(iteration=max_iter + 1, clones_path=clones_path))
+  }
+  else{
+    return(list(iteration=0, clones_path=NULL))
+  }
 }
 
 #' Estimate time trees by running BEAST on each clone
@@ -270,7 +390,9 @@ getTimeTrees <- function(clones, template, beast, dir, id, time,
 #' @param    burnin       Burnin percent (default 10)                 
 #' @param    trait        Trait column used         
 #' @param    asr          Log ancestral sequences?
-#' @param    full_posterior  Read un full distribution of parameters and trees?
+#' @param    posterior    Read un full distribution of parameters and trees? Can be "none" to just have
+#'  summary objects, "all" to have parameters, trees, and trees_with_traits, or a vector with the desired
+#'  combination of "parameters", "trees_with_traits", and "trees".
 #' @param    resume_clones  Clones to resume for \code{mcmc_length} more steps            
 #' @param    include_germline Include germline in analysis?     
 #' @param    start_date       Starting date of time tree if desired
@@ -293,11 +415,13 @@ getTimeTrees <- function(clones, template, beast, dir, id, time,
 #' @seealso \link{getTimeTrees}
 #' @export
 buildBeast <- function(data, beast, time, template, dir, id, mcmc_length = 1000000, 
-                   resume_clones=NULL, trait=NULL, asr=FALSE,full_posterior=FALSE,
+                   resume_clones=NULL, trait=NULL, asr=FALSE,
+                   posterior=c("none","all","parameters","trees_with_traits","trees"),
                    log_every="auto",include_germline = TRUE, nproc = 1, quiet=0, 
                    burnin=10, low_ram=TRUE, germline_range=c(-10000,10000), java=TRUE, 
                    seed=NULL, log_target=10000, trees=NULL, tree_states=FALSE, 
-                   start_edge_length=100, start_date=NULL, max_start_date=NULL,germline_trait_value='?',...) {
+                   start_edge_length=100, start_date=NULL, max_start_date=NULL,
+                   germline_trait_value='?',...) {
 
   beast <- path.expand(beast)
   beast_exec <- file.path(beast,"beast")
@@ -430,7 +554,7 @@ buildBeast <- function(data, beast, time, template, dir, id, mcmc_length = 10000
   }
 
  trees <- readBEAST(clones=data, dir=dir, id=id, beast=beast, burnin=burnin, 
-  trait=trait, quiet=quiet, nproc=nproc, full_posterior=full_posterior, asr=asr, 
+  trait=trait, quiet=quiet, nproc=nproc, posterior=posterior, asr=asr, 
   low_ram=low_ram)
 
   return(trees)
@@ -714,6 +838,7 @@ create_starting_tree <- function(clone, id, tree, include_germline_as_tip, tree_
 #' @param    start_date               starting date to use as prior, in forward time
 #' @param    max_start_date           max starting date to use as prior, in forward time
 #' @param    germline_trait_value     trait value for germline, default '?' for ambiguous
+#' @param    root_trait               trait value of the root, if a fixed root state desired
 #' @param    ...                      additional arguments for XML writing functions
 #'
 #' @return   File path of the written XML file
@@ -722,7 +847,7 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
   trait_data_type=NULL, template=NULL, mcmc_length=1000000, log_every=1000, replacements=NULL, 
   include_germline_as_root=FALSE, include_germline_as_tip=FALSE, 
   germline_range=c(-10000,10000), tree=NULL, trait_list=NULL, log_every_trait=10, tree_states=FALSE,
-  start_edge_length=100, start_date=NULL, max_start_date=NULL, germline_trait_value='?', ...) {
+  start_edge_length=100, start_date=NULL, max_start_date=NULL, germline_trait_value='?', root_trait=NULL, ...) {
   
   kwargs <- list(...)
 
@@ -891,6 +1016,32 @@ write_clone_to_xml <- function(clone, file, id, time=NULL, trait=NULL,
       stop("Could not find <init> tag in the template file")
     }
   }
+
+  if (!is.null(root_trait)) {
+    if (any(grepl("\\$\\{ROOT_TYPE_PROBABILITIES\\}", xml))) {
+      if (is.numeric(root_trait)) {
+        root_trait_index <- root_trait + 1 # add 1 because BEAST uses 0-based indexing for traits
+      } else {
+        root_trait_index <- match(root_trait, trait_list)
+        if (is.na(root_trait_index)) {
+          stop(paste0("root_trait ", root_trait, " not found in trait_list"))
+        }
+      }
+      root_trait_probabilities <- rep(0, length(trait_list))
+      root_trait_probabilities[root_trait_index] <- 1
+      root_trait_probabilities_string <- paste0(root_trait_probabilities, collapse=" ")
+      root_trait_probabilities_string <- paste0('<rootFrequencies id="rootfreqs.s:newTrait" spec="Frequencies">
+                        <parameter id="rootFrequencies.s:newTrait" spec="parameter.RealParameter" dimension="2" name="frequencies">', root_trait_probabilities_string, '</parameter>
+                    </rootFrequencies>')
+      xml <- gsub("\\$\\{ROOT_TYPE_PROBABILITIES\\}", root_trait_probabilities_string, xml)
+    } else {
+      warning("root_trait argument provided but ${ROOT_TYPE_PROBABILITIES} placeholder not found in template file")
+    }
+  } else {
+    if (any(grepl("\\$\\{ROOT_TYPE_PROBABILITIES\\}", xml))) {
+      xml <- gsub("\\$\\{ROOT_TYPE_PROBABILITIES\\}", "", xml)
+    }
+  }
   
   curr_replace_name = "NODES_TYPE_INIT"
   if (any(grepl("\\$\\{NODES_TYPE_INIT\\}", xml))) {
@@ -1032,13 +1183,16 @@ write_clones_to_xmls <- function(data, id, trees=NULL, time=NULL, trait=NULL, te
 #' @param beast      location of beast binary directory (beast/bin)
 #' @param dir        directory where BEAST output files have been placed.
 #' @param id         unique identifer for this analysis
-#' @param trait      Trait coolumn used         
+#' @param trait      Trait column used         
 #' @param asr        Log ancestral sequences?
-#' @param full_posterior  Read un full distribution of parameters and trees?
+#' @param posterior    Read un full distribution of parameters and trees? Can be "none" to just have
+#'  summary objects, "all" to have parameters, trees, and trees_with_traits, or a vector with the desired
+#'  combination of "parameters", "trees_with_traits", and "trees".
 #' @param nproc      Number of cores for parallelization. Uses at most 1 core per tree.
 #' @param quiet      amount of rubbish to print to console
 #' @param burnin         percent of initial tree samples to discard (default 10)
-#' @param low_ram        run with less memory (slightly slower)       
+#' @param low_ram        run with less memory (slightly slower)
+#' @param trim_ids    remove last _ group from tips?       
 #'
 #' @return   
 #' If data is a tibble, then the input clones tibble with additional columns for 
@@ -1048,7 +1202,8 @@ write_clones_to_xmls <- function(data, id, trees=NULL, time=NULL, trait=NULL, te
 #'  
 #' @export
 readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1, 
-  quiet=0, full_posterior=FALSE, asr=FALSE, low_ram=TRUE) {
+  quiet=0, posterior=c("none","all","parameters","trees_with_traits","trees"), 
+  asr=FALSE, low_ram=TRUE, trim_ids=FALSE) {
 
   if(!"list" %in% class(clones) && "data" %in% names(clones)){
     data <- clones$data
@@ -1056,6 +1211,15 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
     data <- clones
   }else{
     stop("Input data type not supported")
+  }
+
+  if(setequal(posterior, c("all","none","parameters","trees_with_traits","trees"))){
+    # default
+    posterior = c("parameters","trees_with_traits","trees")
+  }else if("all" %in% posterior){
+    posterior = c("parameters","trees_with_traits","trees")
+  }else if("none" %in% posterior){
+    posterior = "none"
   }
 
   beast <- path.expand(beast)
@@ -1147,7 +1311,6 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
   }
   
   # read in tree and parameter log
-  # TODO add nodes and sequences to tree
   trees <- list()
   for(i in 1:length(data)){
     if(is.null(trait)){
@@ -1158,10 +1321,34 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
     logfile <- file.path(dir, paste0(id,"_",data[[i]]@clone, ".log"))
     logoutfile <- file.path(dir, paste0(id, "_", data[[i]]@clone,"_log.tsv"))
 
-    beast <- treeio::read.beast(treefile)
-    if("error" %in% class(beast)){
+    beastobj <- treeio::read.beast(treefile)
+    if("error" %in% class(beastobj)){
       stop(paste("Couldn't read in ",treefile))
     }
+
+    # add the usual bells and whistles for Dowser tree objects
+    beastobj@phylo$name <- data[[i]]@clone
+    beastobj@phylo$tree_method <- paste("beast")
+    beastobj@phylo$edge_type <- "time"
+    nnodes <- length(unique(c(beastobj@phylo$edge[,1],beastobj@phylo$edge[,2])))
+    beastobj@phylo$nodes <- lapply(1:nnodes, function(x)list(sequence=NA))
+
+    # add in node sequences. Currently only adds tips.
+    for(j in 1:length(beastobj@phylo$nodes)){
+      if(j <= length(beastobj@phylo$tip.label)){
+        label <- beastobj@phylo$tip.label[j]
+        if(label != "Germline"){
+          beastobj@phylo$nodes[[j]]$sequence <- dplyr::filter(data[[i]]@data, 
+            !!rlang::sym("sequence_id") == label)[[data[[i]]@phylo_seq]]
+        }else{
+          beastobj@phylo$nodes[[j]]$sequence <- switch(data[[i]]@phylo_seq,
+            "sequence" = data[[i]]@germline,
+            "lsequence" = data[[i]]@lgermline,
+            "hlsequence" = data[[i]]@hlgermline)
+        }
+      }
+    }
+
     l <- readLines(logoutfile)
     # just in case there are extra lines at the top of the log file, find the line where the parameter table starts
     item_lines <- grep("item", l)
@@ -1172,9 +1359,9 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
     }
 
     # add parameter summary
-    beast@info$parameters <- log
-    if(full_posterior){ 
-      treesfile <- file.path(dir, paste0(id,"_",data[[i]]@clone, ".trees"))
+    beastobj@info$parameters <- log
+    if("trees" %in% posterior){ 
+      treesfile <- file.path(dir, paste0(id,"_",data[[i]]@clone, ".trees"))      
       l <- readLines(treesfile, warn=FALSE)
       if(!grepl("End;",l[length(l)])){
         l[length(l) + 1] <- "End;"
@@ -1183,22 +1370,60 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
         treesfile <- file.path(dir, paste0(data[[i]]@clone, "_end.trees"))
         writeLines(l, con=treesfile)
       }
-      phylos <- ape::read.nexus(treesfile)
+      # always gives an incomplete final line warning, but not 
+      # an issue if we end on End;
+      phylos <- suppressWarnings(treeio::read.beast(treesfile))
       burn <- floor(length(phylos)*burnin/100)
       phylos <- phylos[(burn+1):length(phylos)]
-      phylos <- lapply(phylos, function(y){
-        y$tip.label <- sapply(strsplit(y$tip.label,"_"), function(x)
+      if(trim_ids){
+        phylos <- lapply(phylos, function(y){
+        y@phylo$tip.label <- sapply(strsplit(y@phylo$tip.label,"_"), function(x)
           paste0(x[1:(length(x)-1)], collapse="_"))
         y
-      })
+      })}
       
-      beast@info$tree_posterior <- phylos
-
-      l <- read.table(logfile, header=TRUE)
-      beast@info$parameters_posterior <- tidyr::gather(l, "parameter", "value", -(!!rlang::sym("Sample")))
+      beastobj@info$trees_posterior <- phylos
     }
-    beast@info$name <- data[[i]]@clone
-    trees[[i]] <- beast
+    if("trees_with_traits" %in% posterior){ 
+      if(is.null(trait)){
+        stop("trait column must be specified when trees_with_traits %in% posterior")
+      }else{
+        treesfile <- file.path(dir, paste0(id,"_",data[[i]]@clone, "_tree_with_trait.trees"))
+      }
+      l <- readLines(treesfile, warn=FALSE)
+      if(!grepl("End;",l[length(l)])){
+        l[length(l) + 1] <- "End;"
+        warning("Adding End; to ",treesfile)
+        #make new file to avoid overwriting
+        treesfile <- file.path(dir, paste0(data[[i]]@clone, "_end.trees"))
+        writeLines(l, con=treesfile)
+      }
+      phylos <- suppressWarnings(treeio::read.beast(treesfile))
+      burn <- floor(length(phylos)*burnin/100)
+      phylos <- phylos[(burn+1):length(phylos)]
+      if(trim_ids){
+        phylos <- lapply(phylos, function(y){
+        y@phylo$tip.label <- sapply(strsplit(y@phylo$tip.label,"_"), function(x)
+          paste0(x[1:(length(x)-1)], collapse="_"))
+        y
+      })}
+      beastobj@info$trees_with_traits_posterior <- phylos
+    }
+    if("parameters" %in% posterior){
+      l <- read.table(logfile, header=TRUE)
+      burn <- floor(nrow(l)*burnin/100)
+      l <- l[(burn+1):nrow(l),]
+      beastobj@info$parameters_posterior <- l
+    #  beastobj@info$parameters_posterior <- tidyr::gather(l,
+    #   "parameter", "value", -(!!rlang::sym("Sample")))
+    }
+    beastobj@info$name <- data[[i]]@clone
+    trees[[i]] <- beastobj
+  }
+
+  # set divergence of each node
+  for(i in 1:length(trees)){
+    trees[[i]]@phylo <- setNodeDivergences(trees[[i]]@phylo)
   }
 
   if(quiet < 1)print("Ran readBEAST")
@@ -1217,41 +1442,36 @@ readBEAST <- function(clones, dir, id, beast, burnin=10, trait=NULL, nproc = 1,
 #' get values for Bayesian Skyline plot
 #' 
 #' \code{makeSkyline} 
-#' @param  logfile   Beast log file
-#' @param  treesfile BEAST trees file 
-#' @param  burnin    Burnin percentage (1-100) 
+#' @param  object    treedata object with parameters_posterior and trees_posterior
 #' @param  bins      number of bins for plotting
 #' @param  youngest  timepoint of the most recently tip sampled (if 0, backward time used)
 #' @param  clone_id  name of the clone being analyzed (if desired)
 #' @param  max_height max height to use (min, median, mean, max)
+#' @param  exclude_germline exclude germline from skyline plot? (For TyCHE germline-rooted trees)
 #' @return   Bayesian Skyline values for given clone
 #'
 #' @export
-makeSkyline <- function(logfile, treesfile, burnin, bins=100, youngest=0, 
-    clone_id=NULL, max_height=c("min","median","mean","max")){
+makeSkyline <- function(object, bins=100, youngest=0, 
+    clone_id=NULL, max_height=c("min","median","mean","max"), exclude_germline=TRUE){
     
-    l <- tryCatch(read.csv(logfile, header=TRUE, sep="\t", comment.char="#"),error=function(e)e)
-    if("error" %in% class(l)){
-        stop(paste("couldn't open",logfile))
+    if(length(max_height) > 1){
+      max_height <- max_height[1]
     }
-    phylos <- tryCatch(ape::read.nexus(treesfile), error=function(e)e)
-    if("error" %in% class(phylos)){
-        stop(paste("couldn't open", treesfile))
+    params <- object@info$parameters_posterior
+    phylos <- object@info$trees_posterior
+    if(is.null(params) || is.null(phylos)){
+      stop(paste("Parameters and trees posterior not found.\n",
+        "Try reading in object with readBEAST(posterior='all')"))
     }
-    params <- tidyr::gather(l, "parameter", "value", -(!!rlang::sym("Sample")))
+    phylos <- lapply(phylos, function(x)x@phylo)
+    params <- tidyr::gather(params, "parameter", "value", -(!!rlang::sym("Sample")))
 
     if(!"bPopSizes.1" %in% unique(params$parameter)){
         stop(paste("log file doesn't have pop sizes.",
             "Was it run with skyline tree_prior='coalescent_skyline'?"))
     }
 
-    burn <- floor(length(phylos)*burnin/100)
-    samples <- unique(params$Sample)
-    if(burn > 0){
-      phylos <- phylos[(burn+1):length(phylos)]
-      samples <- samples[(burn+1):length(samples)]
-      params <- dplyr::filter(params, !!rlang::sym("Sample") %in% samples)
-    }
+    samples <- sort(unique(params$Sample))
     if(dplyr::n_distinct(params$Sample) != length(phylos)){
       warning("Parameter and tree posteriors not same length, subsetting")
       treestates <- as.numeric(gsub("STATE_","",names(phylos)))
@@ -1265,10 +1485,10 @@ makeSkyline <- function(logfile, treesfile, burnin, bins=100, youngest=0,
     pops <- dplyr::filter(params, grepl("PopSizes", !!rlang::sym("parameter")))
 
     if(sum(pops$value < 0) > 0){
-        stop(paste(logfile, "found popsizes < 0, can't continue"))
+        stop(paste(object@phylo$name, "found popsizes < 0, can't continue"))
     }
     if(sum(groups$value < 0) > 0){
-        stop(paste(logfile, "found groupsizes < 0, can't continue"))
+        stop(paste(object@phylo$name, "found groupsizes < 0, can't continue"))
     }
 
     pops$index <- as.numeric(gsub("bPopSizes\\.","",pops$parameter))
@@ -1300,6 +1520,17 @@ makeSkyline <- function(logfile, treesfile, burnin, bins=100, youngest=0,
     all_intervals <- dplyr::tibble()
     for(index in 1:length(phylos)){
       tr <- phylos[[index]]
+      if (exclude_germline){
+        germline_name <- ifelse("Germline" %in% tr$tip.label, "Germline", 
+          ifelse("germline" %in% tr$tip.label, "germline", 
+            ifelse("GL" %in% tr$tip.label, "GL", NA)))
+        if(is.na(germline_name)) {
+          warning(paste( 
+            "Couldn't find germline tip in tree, proceeding without dropping germline"))
+        } else {
+          tr <- ape::drop.tip(tr, germline_name)
+        }
+      }
       sample <- samples[index]
       mrca <- ape::getMRCA(tr, tip=tr$tip.label)
       d <- ape::dist.nodes(tr)
@@ -1335,7 +1566,7 @@ makeSkyline <- function(logfile, treesfile, burnin, bins=100, youngest=0,
         pull(sample)
 
     if(length(indistinct) > 0){
-        warning(paste(logfile, "Removing",length(indistinct),
+        warning(paste(object@phylo$name, "Removing",length(indistinct),
             "samples with indistinct intervals. This shouldn't happen."))
         all_intervals <- dplyr::filter(all_intervals, !(!!rlang::sym("sample") %in% indistinct))
         if(nrow(all_intervals) == 0){
@@ -1395,34 +1626,32 @@ makeSkyline <- function(logfile, treesfile, burnin, bins=100, youngest=0,
         skyplot$bin <- youngest - skyplot$bin
     }
 
-    return(skyplot)
+    return(as.data.frame(skyplot))
 }
 
 #' Make data frames for Bayesian skyline plots
 #' 
 #' \code{makeSkylines} 
 #' @param  clones    clone tibble
-#' @param  dir       directory of BEAST trees file 
-#' @param  id        unique identifer for this analysis
 #' @param  time      name of time column
 #' @param  bins      number of bins for plotting
-#' @param  burnin    Burnin percent (default 10) 
 #' @param  verbose   if 1, print name of clones
 #' @param  forward   plot in forward or (FALSE) backward time?
 #' @param  nproc     processors for parallelization (by clone)
 #' @param  max_height max height to use (min, median, mean, max)
+#' @param  exclude_germline exclude germline from skyline plot? (For TyCHE GRTs)
 #' @return   Bayesian Skyline values for given clone
-#' @details Burnin set from readBEAST or getTrees
+#' @details Clones must contain treedata objects with parameters_posterior and
+#' trees_posterior. See \code{readBEAST} or \code{getTimeTrees} with posterior="all"
 #' @export
-getSkylines <- function(clones, dir, id, time, burnin=10, bins=100, verbose=0, forward=TRUE,
-    nproc=1, max_height=c("min","median","mean","max")){
+getSkylines <- function(clones, time, bins=100, verbose=0, forward=TRUE,
+    nproc=1, max_height=c("min","median","mean","max"), exclude_germline=TRUE){
 
-    treesfiles <- sapply(clones$data, function(x)
-        file.path(dir, paste0(id, "_", x@clone, ".trees")))
-
-    logfiles <- sapply(clones$data, function(x)
-        file.path(dir, paste0(id, "_", x@clone, ".log")))
-
+    if(is.null(clones$trees[[1]]@info$parameters_posterior) || 
+      is.null(clones$trees[[1]]@info$trees_posterior)){
+      stop(paste("Parameters and trees posterior not found.\n",
+        "Try reading in object with readBEAST(posterior='all')"))
+    }
     if(forward){
         youngest <- sapply(clones$data, function(x)
             max(as.numeric(x@data[[time]])))
@@ -1432,12 +1661,13 @@ getSkylines <- function(clones, dir, id, time, burnin=10, bins=100, verbose=0, f
 
     skylines <- parallel::mclapply(1:nrow(clones), function(x){
         if(verbose != 0){
-            print(paste(clones$clone_id[x], logfiles[x], 
-                treesfiles[x], youngest[x]))
+            print(paste(clones$clone_id[x], youngest[x]))
         }
-        tryCatch(makeSkyline(logfile=logfiles[x], treesfile=treesfiles[x],
-            youngest=youngest[x], burnin=burnin, bins=bins, 
-            clone_id=clones$clone_id[x], max_height=max_height), error=function(e)e)
+        tryCatch(makeSkyline(clones$trees[[x]],
+            youngest=youngest[x], bins=bins, 
+            clone_id=clones$clone_id[x], max_height=max_height, 
+            exclude_germline=exclude_germline),
+            error=function(e)e)
     }, mc.cores=nproc)
 
     clones$skyline <- skylines
@@ -1450,3 +1680,202 @@ getSkylines <- function(clones, dir, id, time, burnin=10, bins=100, verbose=0, f
     }
     return(clones)
 }
+
+#' Add height and length columns to a tree@data data frame
+#' @param  tree    a treedata objects from read.beast
+# @export
+getHeightsAndLengths = function(tree){
+  phylo <- tree@phylo
+  uca <- ape::getMRCA(phylo, tip=phylo$tip.label)
+  dists <- ape::dist.nodes(phylo)
+  max_height <- max(dists[uca,])
+  tree@data$height <- NA
+  tree@data$length <- NA
+  for(i in 1:nrow(tree@data)){
+    node <- tree@data$node[i]
+    tree@data$height[i] <- max_height - dists[node,uca]
+    if(node == uca){
+      tree@data$length[i] <- 0
+    }else{
+      tree@data$length[i] <- phylo$edge.length[which(phylo$edge[,2] == node)]
+    }
+  }
+  return(tree)
+}
+
+
+#' Recurse up to tree to find most recent node with different state, or the root
+#' 
+#' \code{getDiffPoint} 
+#' @param  tree    a treedata object, from getTimeTrees
+#' @param  targetnode    current node
+#' @param  trait   column name of the trait of interest
+#' @param  height  which height value to return
+#' @param verbose  print out run info
+#' @param eo_adjust adjust heights using expectOccupancies (recommended, requires eo_type)
+#' @param eo_type  if eo_adjust, trait value described by expectedOccupancies (typically state 1 of 2)
+# @export
+getDiffPoint = function(tree, targetnode, trait, height="height", verbose=FALSE,
+  eo_adjust=FALSE, eo_type=NULL){
+  type <- dplyr::filter(tree@data, !!rlang::sym("node")==targetnode)[[trait]]
+  edge <- tree@phylo$edge[tree@phylo$edge[,2] == targetnode,]
+  if(verbose){
+    print(paste(targetnode,type))
+    print(edge)
+  }
+  if(length(edge) == 0){
+    return(dplyr::tibble(diff_node=targetnode, root=1, node_type=type, 
+      node_height=as.numeric(filter(tree@data, !!rlang::sym("node")==targetnode)[[height]])))
+  }
+  if(!is.null(nrow(edge))){
+    stop("weird")
+  }
+  parent <- as.character(edge[1])
+  parent_type <- dplyr::filter(tree@data, !!rlang::sym("node")==parent)[[trait]]
+  parent_height <- as.numeric(dplyr::filter(tree@data, !!rlang::sym("node")==parent)[[height]])
+  if(parent_type == type){
+    return(getDiffPoint(tree, parent, trait, height, verbose, eo_adjust, eo_type))
+  }else{
+    if(eo_adjust){
+      child <- dplyr::filter(tree@data, !!rlang::sym("node")==targetnode)
+      if(type == eo_type){
+        adjust <- (1-as.numeric(child$expectedOccupancies)) * 
+          as.numeric(child$length)
+      }else{ # if parent is EO type (i.e. tip is not, assumes only 2 types)
+        adjust <- as.numeric(child$expectedOccupancies) * 
+          as.numeric(child$length)
+      }
+      parent_height <- as.numeric(parent_height) - adjust
+    }
+    return(dplyr::tibble(diff_node=parent, root=0, node_type=parent_type, 
+      node_height=parent_height))
+  }
+}
+
+#' For each tree, recurse up to tree to find most recent 
+#' node with a different state, or the root
+#' 
+#' \code{getDiffPoints} 
+#' @param  data    a tibble containing trees column from getTimeTrees
+#' @param  trait   column name of the trait of interest
+#' @param  height  which height value to return
+#' @param  verbose print out info during run
+#' @param  tip_traits vector of other traits to include for each tip.
+#'           Must have been also specified as traits in formatClones.
+#' @param eo_adjust adjust heights using expectOccupancies. Recommended if EO model used,
+#'         requires eo_type to specify the type whose occupancy is tracked)
+#' @param eo_type  if eo_adjust, trait value described by expectedOccupancies (typically state 1 of 2)
+#' @param full_posterior Computer statistics using the full posterior distribution of trees?
+#' @param summarize if full_posterior=TRUE, summarize results or return the full table?
+#' @param nproc Number of cores to use (parallelizes by row of input data object)
+#' @details 
+#' Returns a data frame where each row is a tip in each tree
+#' clone_id = clone id for that tree
+#' tip = tip name
+#' tip_tip = trait value for that tip
+#' tip_height = height value for that tip
+#' diff_node = most recent ancestor node with different trait value, or root
+#' root = 1 if at root node, 0 otherwise
+#' node_type = type of diff_node, will be "root" if at root node
+#' node_height = height of diff_node 
+#' <other columns> copied over from airrClone object for each tip
+#' 
+#' @examples
+#' 
+#' \dontrun{dp = getDiffPoints(data, "location", verbose=TRUE, 
+#'  eo_adjust=TRUE, eo_type="germinal_center")}
+#' 
+#' @export
+getDiffPoints = function(data, trait, height="height", verbose=FALSE,
+  tip_traits=NULL, eo_adjust=FALSE, eo_type=NULL, full_posterior=FALSE,
+  summarize=TRUE, nproc=1){
+  #results <- dplyr::tibble()
+  #for(row in 1:nrow(data)){
+  results_list <- parallel::mclapply(1:nrow(data),function(x){
+    if(verbose)print(data$clone_id[x])
+    trees <- data$trees[[x]]
+    if(full_posterior){
+      if(!"trees_with_traits_posterior" %in% names(trees@info)){
+        stop(paste("Tree posterior distribution not found.\nEither first run readBEAST using",
+          "posterior='trees_with_traits' (or posterior='all') or set full_posterior=FALSE to use a single tree"))
+      }
+      trees <- trees@info$trees_with_traits_posterior
+    }else{
+      trees <- list(trees)
+    }
+    diffpoints <- dplyr::tibble()
+    treecounter <- 1
+    for(tree in trees){
+      if(!"height" %in% names(tree@data) || !"length" %in% names(tree@data)){
+        tree <- getHeightsAndLengths(tree)
+      }
+      for(l in tree@phylo$tip.label){
+        #if(verbose){
+        #  print(paste(treecounter,l))
+        #}
+        d <- dplyr::filter(tree@data, !!rlang::sym("node") == 
+          which(tree@phylo$tip.label == l))
+        df <- getDiffPoint(tree, which(tree@phylo$tip.label == l), 
+          trait=trait, height=height, verbose=FALSE, eo_adjust=eo_adjust,
+          eo_type=eo_type)
+        temp <- dplyr::tibble(clone_id=data$clone_id[x], tip=l, 
+          tip_type=d[[trait]], tip_height=d[[height]], treecounter=treecounter)
+        diffpoints <- dplyr::bind_rows(diffpoints, dplyr::bind_cols(temp, df))
+        treecounter <- treecounter + 1
+      }
+    }
+    diffpoints$node_height <- as.numeric(diffpoints$node_height)
+    diffpoints$tip_height <- as.numeric(diffpoints$tip_height)
+    
+    if(summarize & length(trees) > 1){
+      diffpoints <- diffpoints %>%
+        group_by(!!rlang::sym("tip"), !!rlang::sym("tip_type"), !!rlang::sym("node_type")) %>%
+        summarize(
+          trees = n(),
+          tip_tip = unique(!!rlang::sym("tip_type")),
+          tip_height = mean(!!rlang::sym("tip_height")),
+          node_height_mean = mean(!!rlang::sym("node_height")),
+          node_height_95HPDlo = coda::HPDinterval(coda::as.mcmc(!!rlang::sym("node_height")), prob = 0.95)[1],
+          node_height_95HPDup = coda::HPDinterval(coda::as.mcmc(!!rlang::sym("node_height")), prob = 0.95)[2],
+          root_freq = mean(!!rlang::sym("root")),
+          .groups = "drop_last"
+          )
+    }
+
+    # copy over trait info for each tip
+    if(!is.null(tip_traits)){
+      for(tr in tip_traits){
+        if(!tr %in% names(data$data[[x]]@data)){
+          stop(paste(tr, "not found in airrClone object"))
+        }
+        diffpoints[[tr]] = NA
+        for(tindex in 1:nrow(diffpoints)){
+          m <- match(diffpoints$tip[tindex], data$data[[x]]@data$sequence_id)
+          if(is.na(m)){
+            if(diffpoints$tip[tindex] == "Germline"){
+              diffpoints[[tr]][tindex] <- NA
+              next
+            }
+            stop(paste(diffpoints$tip[tindex],"not found in airrClone object"))
+          }
+          diffpoints[[tr]][tindex] <- data$data[[x]]@data[[tr]][m]
+        }
+      }
+    }
+    diffpoints$clone_id <- data$clone_id[x]
+    diffpoints
+  }, mc.cores=nproc)
+  results <- tryCatch(dplyr::bind_rows(results_list), 
+    error=function(e){
+      saveRDS(results_list, "getDiffPoints_error.rds")
+      stop("Error caught in getDiffPoints, see getDiffPoints_error.rds")
+    })
+  return(results)
+}
+
+
+
+
+
+
+

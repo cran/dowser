@@ -7,13 +7,12 @@
 # data(ExampleAirr)
 # 
 # # subset data for this example
-# # only one clone used for speed, otherwise can include multiple clones
-# ExampleAirr = ExampleAirr[ExampleAirr$clone_id %in% c("3170"),]
+# ExampleAirr = ExampleAirr[ExampleAirr$clone_id %in% c("3170", "3184"),]
 # 
 # # Process example data into proper format, store isotype (optional)
 # clones = formatClones(ExampleAirr, traits="c_call")
 # 
-# # Build maxmimum parsimony trees for first clone using
+# # Build maxmimum parsimony trees for first two clones using
 # # phangorn package in R
 # trees <- getTrees(clones)
 # 

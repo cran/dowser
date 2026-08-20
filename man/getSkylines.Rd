@@ -6,27 +6,19 @@
 \usage{
 getSkylines(
   clones,
-  dir,
-  id,
   time,
-  burnin = 10,
   bins = 100,
   verbose = 0,
   forward = TRUE,
   nproc = 1,
-  max_height = c("min", "median", "mean", "max")
+  max_height = c("min", "median", "mean", "max"),
+  exclude_germline = TRUE
 )
 }
 \arguments{
 \item{clones}{clone tibble}
 
-\item{dir}{directory of BEAST trees file}
-
-\item{id}{unique identifer for this analysis}
-
 \item{time}{name of time column}
-
-\item{burnin}{Burnin percent (default 10)}
 
 \item{bins}{number of bins for plotting}
 
@@ -37,6 +29,8 @@ getSkylines(
 \item{nproc}{processors for parallelization (by clone)}
 
 \item{max_height}{max height to use (min, median, mean, max)}
+
+\item{exclude_germline}{exclude germline from skyline plot? (For TyCHE GRTs)}
 }
 \value{
 Bayesian Skyline values for given clone
@@ -45,5 +39,6 @@ Bayesian Skyline values for given clone
 \code{makeSkylines}
 }
 \details{
-Burnin set from readBEAST or getTrees
+Clones must contain treedata objects with parameters_posterior and
+trees_posterior. See \code{readBEAST} or \code{getTimeTrees} with posterior="all"
 }

@@ -73,14 +73,15 @@
 # plots[[1]]
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
+# library(ggtree)
 # 
 # plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
 # 
 # #Plot the largest tree
-# treeplot = plots[[1]] + ggtree::geom_tiplab() +
-#     ggplot2::geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
-#         linetype="dashed",color="grey") + ggtree::xlim(0,0.3) +
-#     ggplot2::ggtitle("Example B cell tree")
+# treeplot = plots[[1]] + geom_tiplab() +
+#     geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
+#         linetype="dashed",color="grey") + xlim(0,0.3) +
+#     ggtitle("Example B cell tree")
 # 
 # treeplot
 
@@ -90,23 +91,24 @@
 # plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
 # 
 # #Plot the largest tree
-# treeplot = plots[[1]] + ggtree::geom_tiplab(aes(label=c_call), offset = 0.02) +
-#     ggplot2::geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
-#         linetype="dashed",color="grey") + ggtree::xlim(0,0.3) +
-#     ggplot2::ggtitle("Example B cell tree")
+# treeplot = plots[[1]] + geom_tiplab(aes(label=c_call), offset = 0.02) +
+#     geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
+#         linetype="dashed",color="grey") + xlim(0,0.3) +
+#     ggtitle("Example B cell tree")
 # 
 # treeplot
 
 ## ----eval=FALSE, warning=FALSE, message=FALSE---------------------------------
+# library(ggtree)
 # 
 # plots = plotTrees(ExampleClones, tips="c_call", tipsize=2)
 # 
 # #Manually adjust all trees
 # treeplots = lapply(plots, function(x)
-#   x + ggtree::geom_tiplab(aes(label=c_call), offset = 0.02) +
-#     ggplot2::geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
-#         linetype="dashed",color="grey") + ggtree::xlim(0,0.3) +
-#     ggplot2::ggtitle("Example B cell tree")
+#   x + geom_tiplab(aes(label=c_call), offset = 0.02) +
+#     geom_vline(xintercept=c(0.05,0.1,0.15,0.2,0.25),
+#         linetype="dashed",color="grey") + xlim(0,0.3) +
+#     ggtitle("Example B cell tree")
 #   )
 # 
 # # plot 2nd largest tree

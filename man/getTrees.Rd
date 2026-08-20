@@ -89,10 +89,11 @@ be toggled using (\code{rm_files}).
 For examples and vignettes, see https://dowser.readthedocs.io
 }
 \examples{
+\dontrun{
 data(ExampleClones)
 trees <- getTrees(ExampleClones[10,])
 plotTrees(trees)[[1]]
-
+}
 \dontrun{
 data(ExampleClones)
 

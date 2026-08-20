@@ -227,6 +227,9 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #' @param    tip_palette        deprecated, use palette
 #' @param    guide_title        Title of color guide. Defaults to tips variable if specified.
 #' @param    branch_lengths     Use branch lenghts? Use "none" if not.
+#' @param    densitree          Use densitree visualization? Requires trees_with_traits/trees posterior
+#'                              to be loaded in (see posterior options in \code{readBEAST}).
+#' @param    alpha              Alpha value for ggtree. Lower makes the tree more transparent.
 #'
 #' @return   a grob containing a tree plotted by \code{ggtree}.
 #'
@@ -239,15 +242,18 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #'  
 #' @seealso \link{getTrees}, \link{findSwitches}
 #' @examples
+#' \dontrun{
 #' data(ExampleClones)
 #' trees <- getTrees(ExampleClones[10,])
 #' plotTrees(trees)[[1]]
+#' }
 #' @export
 plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL, 
     scale=0.01, palette="Dark2", base=FALSE, show_occupancy=FALSE,
     layout="rectangular", node_nums=FALSE, tip_nums=FALSE, title=TRUE,
     labelsize=NULL, common_scale=FALSE, ambig="grey", bootstrap_scores=FALSE,
-    tip_palette=NULL, node_palette=NULL, guide_title=NULL, branch_lengths=NULL, pch=16){
+    tip_palette=NULL, node_palette=NULL, guide_title=NULL, branch_lengths=NULL, pch=16,
+    densitree=FALSE, alpha=1){
 
     tiptype = "character"
     # CGJ 12/12/23 add check to see if the color palettes are unnamed vectors 
@@ -283,7 +289,6 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
             breaks = c(0, 0.25, 0.5, 0.75, 1),
             limits = c(0, 1))
     }
-
     if(!base){
         cols <- c()
         # set up global tip and node palette
@@ -386,7 +391,8 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
             nodes=nodes,tips=tips,tipsize=tipsize,scale=scale,palette=palette, node_palette=node_palette,
             tip_palette=tip_palette,base=TRUE,layout=layout,node_nums=node_nums,show_occupancy=show_occupancy,
             tip_nums=tip_nums,title=title,labelsize=labelsize, ambig=ambig, pch=pch,
-            bootstrap_scores=bootstrap_scores, guide_title=guide_title, branch_lengths=branch_lengths))
+            bootstrap_scores=bootstrap_scores, guide_title=guide_title, branch_lengths=branch_lengths,
+            densitree=densitree, alpha=alpha))
         if(!is.null(tips) || nodes || show_occupancy){
             if(!is.null(guide_title)){
                 gt <- guide_title
@@ -432,19 +438,42 @@ plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL,
             })
         }
         return(ps)
-    }
+    } #if !base
 
     tree <- trees$trees[[1]]
     data <- trees$data[[1]]
 
+    if(densitree){
+        if("trees_with_traits_posterior" %in% names(tree@info)){
+            trees <- tree@info$trees_with_traits_posterior
+        }else if("trees_posterior" %in% names(tree@info)){
+            trees <- tree@info$trees_posterior
+        }else{
+            stop("trees_with_trait_posterior and trees_posterior not found")
+        }
+    }
+
     if(!is.null(branch_lengths)){
-        p <- ggtree::ggtree(tree, layout=layout, branch.length=branch_lengths)
+        if(!densitree){
+            p <- ggtree::ggtree(tree, layout=layout, branch.length=branch_lengths, alpha=alpha)
+        }else{
+            p <- ggtree::ggdensitree(trees, layout=layout, branch.length=branch_lengths, alpha=alpha)
+        }
     }else{
         if(show_occupancy){
-            p <- ggtree::ggtree(tree, layout=layout, 
-                aes(color=as.numeric(!!rlang::sym("expectedOccupancies"))))
+            if(!densitree){
+                p <- ggtree::ggtree(tree, layout=layout, 
+                    aes(color=as.numeric(!!rlang::sym("expectedOccupancies"))), alpha=alpha)
+            }else{
+                p <- ggtree::ggdensitree(trees, layout=layout, 
+                    aes(color=as.numeric(!!rlang::sym("expectedOccupancies"))), alpha=alpha)
+            }
         }else{
-            p <- ggtree::ggtree(tree, layout=layout)
+            if(!densitree){
+                p <- ggtree::ggtree(tree, layout=layout, alpha=alpha)
+            }else{
+                p <- ggtree::ggdensitree(trees, layout=layout, alpha=alpha)
+            }
         }
     }
     #add bootstrap scores to ggplot object
@@ -642,5 +671,109 @@ plotSkylines = function(clones, file=NULL, width=8.5, height=11, ...){
         return(plots)
     }
 }
+
+#' Simple function for plotting multiple sequence alignments
+#' input can be either nucleotide or AA and contain ambiguous characters
+#' 
+#' @param  data Data table with sequences
+#' @param  id   column name of sequence IDs (order will be preserved)
+#' @param  seq  column name of sequence data to be plotted
+#' @param  seq_type sequence type in \code{seq} column, nucleotide (nt) or amino acid (aa)
+#' @param  text_size size of sequence alignment text
+#' @param  palette named vector of color for each character type in alignment, otherwise 
+#'                  default nt or aa palette will be used
+#'  
+#' @return   a ggplot2-formatted multiple sequence alignment plot
+#'  
+#' @seealso \link{getSeqPath}
+#' @export
+plotMSA = function(data, id, seq, seq_type=c("nt","aa"),text_size=1.5, 
+    palette=NULL){
+
+    seq_type <- seq_type[1]
+
+    # default palette for plotting
+    if(is.null(palette)){
+        if(seq_type == "nt"){
+            print("Using default NT palette")
+            palette <- c(
+            "T" = "#1f78b4",
+            "A" = "white",
+            "G" = "#fb9a99",
+            "C" = "#fdbf6f",
+            "R" = "grey",
+            "Y" = "grey",
+            "S" = "grey",
+            "W" = "grey",
+            "K" = "grey",
+            "M" = "grey",
+            "B" = "grey",
+            "D" = "grey",
+            "H" = "grey",
+            "V" = "grey",
+            "N" = "grey",
+            "-" = "lightgrey",
+            "." = "lightgrey",
+            "?" = "lightgrey"
+                )
+        }else{
+            print("Using default AA palette")
+            palette <- c(
+            "H" = "#a6cee3",
+            "K" = "#a6cee3",
+            "R" = "#a6cee3",
+            "D" = "#fb9a99",
+            "E" = "#fb9a99",
+            "S" = "#1f78b4",
+            "T" = "#1f78b4",
+            "N" = "#1f78b4",
+            "Q" = "#1f78b4",
+            "A" = "white",
+            "V" = "white",
+            "L" = "white",
+            "I" = "white",
+            "M" = "white",
+            "F" = "#cab2d6",
+            "Y" = "#cab2d6",
+            "W" = "#cab2d6",
+            "P" = "#fb9a99",
+            "G" = "#fb9a99",
+            "C" = "#fdbf6f",
+            "B" = "grey",
+            "Z" = "grey",
+            "X" = "grey",
+            "-" = "lightgrey",
+            "." = "lightgrey",
+            "?" = "lightgrey")
+        }
+    }
+
+    # melt data frame to individual positions
+    sites <- dplyr::tibble()
+    seqsplit <- strsplit(data[[seq]], split="")
+    for(i in 1:length(seqsplit)){
+        sites <- bind_rows(sites, bind_cols(position=1:length(seqsplit[[i]]), 
+            character=seqsplit[[i]], id=data[[id]][i]))
+    }
+    sites$id = factor(sites$id, 
+        levels=as.character(unique((sites$id))))
+
+    # plot
+    g <- ggplot2::ggplot(sites, aes(x=!!rlang::sym("position"), 
+        y=!!rlang::sym("id"), fill=!!rlang::sym("character"), 
+        label=!!rlang::sym("character"))) + 
+    ggplot2::geom_tile() + 
+    ggplot2::geom_text(size=text_size) + 
+    ggplot2::theme_bw() + 
+    ggplot2::theme(legend.position = "none") + 
+    ggplot2::xlab("") + 
+    ggplot2::ylab("") +
+    ggplot2::scale_fill_manual(values=palette) +
+    ggplot2::scale_y_discrete(limits=rev) +
+    ggplot2::scale_x_continuous(expand = c(0, 0))
+
+    return(g)
+}
+
 
 

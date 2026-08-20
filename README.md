@@ -1,22 +1,12 @@
+[![](https://www.r-pkg.org/badges/version/dowser)](https://cran.r-project.org/package=dowser)
 [![](http://cranlogs.r-pkg.org/badges/grand-total/dowser)](https://www.r-pkg.org/pkg/dowser)
 [![](https://cranlogs.r-pkg.org/badges/dowser)](https://www.r-pkg.org/pkg/dowser)
 [![](https://img.shields.io/static/v1?label=AIRR-C%20sw-tools%20v1&message=compliant&color=008AFF&labelColor=000000&style=plastic)](https://docs.airr-community.org/en/stable/swtools/airr_swtools_standard.html)
 
-**IMPORTANT!** 
-Dowser's source code has moved to https://github.com/immcantation/dowser
-
-To update Git configuration settings use:
-
-```
-   git config user.email "your-gh-user@email.com"
-   git config user.name "your-gh-user-name"
-   git remote set-url origin git@github.com:immcantation/dowser.git
-```
-
 Dowser
 -------------------------------------------------------------------------------
 
-Dowser is part of the [Immcantation](http://immcantation.readthedocs.io) 
+Dowser is part of the [Immcantation](https://immcantation.readthedocs.io) 
 analysis framework for Adaptive Immune Receptor Repertoire sequencing 
 (AIRR-seq). Dowser provides a set of tools for performing phylogenetic analysis
 on B cell receptor repertoires. It supports building and visualizing trees using 
@@ -40,8 +30,22 @@ Dowser has 6 primary functions:
 Documentation and tutorials
 -------------------------------------------------------------------------------
 
-Full documentation, including tutorials and vignettes: https://dowser.readthedocs.io
+Full documentation, including tutorials and vignettes: [Dowser ReadTheDocs site](https://dowser.readthedocs.io)
 
+For AI assistants/LLMs and other automated agents: [llms.txt](https://github.com/immcantation/dowser/blob/master/llms.txt) is a short curated index of Dowser's documentation, and [llms-full.txt](https://github.com/immcantation/dowser/blob/master/llms-full.txt) concatenates the entire documentation corpus (every vignette and function
+reference page) into one file.
+
+Citation
+-------------------------------------------------------------------------------
+
+If you use Dowser in published research, please cite:
+
+> Hoehn K, Pybus O, Kleinstein S (2022). Phylogenetic analysis of migration, differentiation, and class switching in B cells. PLoS Computational Biology. https://doi.org/10.1371/journal.pcbi.1009885
+
+Please also run `citation("dowser")` in R for the complete, feature-specific list —
+additional citations apply if you used the `correlationTest` measurable
+evolution test, built paired heavy/light chain trees, or used IgPhyML for
+tree building.
 
 Contact
 -------------------------------------------------------------------------------

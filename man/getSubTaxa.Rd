@@ -19,8 +19,9 @@ A vector containing tip labels of the clade
 }
 \examples{
 # Get taxa from all subtrees
+\dontrun{
 data(BiopsyTrees)
 tree <- BiopsyTrees$trees[[8]]
 all_subtrees <- lapply(1:length(tree$nodes), function(x)getSubTaxa(x, tree))
-
+}
 }

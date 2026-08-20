@@ -13,9 +13,10 @@ readBEAST(
   trait = NULL,
   nproc = 1,
   quiet = 0,
-  full_posterior = FALSE,
+  posterior = c("none", "all", "parameters", "trees_with_traits", "trees"),
   asr = FALSE,
-  low_ram = TRUE
+  low_ram = TRUE,
+  trim_ids = FALSE
 )
 }
 \arguments{
@@ -29,17 +30,21 @@ readBEAST(
 
 \item{burnin}{percent of initial tree samples to discard (default 10)}
 
-\item{trait}{Trait coolumn used}
+\item{trait}{Trait column used}
 
 \item{nproc}{Number of cores for parallelization. Uses at most 1 core per tree.}
 
 \item{quiet}{amount of rubbish to print to console}
 
-\item{full_posterior}{Read un full distribution of parameters and trees?}
+\item{posterior}{Read un full distribution of parameters and trees? Can be "none" to just have
+summary objects, "all" to have parameters, trees, and trees_with_traits, or a vector with the desired
+combination of "parameters", "trees_with_traits", and "trees".}
 
 \item{asr}{Log ancestral sequences?}
 
 \item{low_ram}{run with less memory (slightly slower)}
+
+\item{trim_ids}{remove last _ group from tips?}
 }
 \value{
 If data is a tibble, then the input clones tibble with additional columns for 

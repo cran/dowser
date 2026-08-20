@@ -98,8 +98,10 @@
 #' @seealso  Returns an \link{airrClone}. See \link{formatClones} to generate an 
 #' ordered list of airrClone objects.
 #' @examples
+#' \dontrun{
 #' data(ExampleAirr)
 #' airr_clone <- makeAirrClone(ExampleAirr[ExampleAirr$clone_id=="3184",])
+#' }
 #' @export
 makeAirrClone <- 
   function(data, id="sequence_id", seq="sequence_alignment", 
@@ -1403,7 +1405,7 @@ getSubclones <- function(heavy, light, nproc=1, minseq=1,
 #' 3. vj_cell which combines the vj_gene and vj_alt_cell columns by a ",".
 # TODO: add "fields" option consistent with other functions
 #' @export
-resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH",
+resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus", heavy="IGH",
                                id="sequence_id", seq="sequence_alignment",
                                clone="clone_id", cell="cell_id", v_call="v_call",
                                j_call="j_call", junc_len="junction_length",
@@ -1606,12 +1608,6 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
     if(nrow(hd_bulk) != 0){
       comb <- dplyr::bind_rows(comb, hd_bulk)
     }
-    comb$clone_subgroup_id <- paste0(comb[[clone]],"_",comb[[subgroup]])
-    comb$vj_cell <- ifelse(
-      !is.na(comb$vj_alt_cell),
-      paste(comb$vj_gene, comb$vj_alt_cell, sep = ","),
-      comb$vj_gene
-    )
     
     size <- as.integer(table(comb[[subgroup]]))
     if(!all(diff(size) <= 0)){
@@ -1619,11 +1615,20 @@ resolveLightChains <- function(data, nproc=1, minseq=1,locus="locus",heavy="IGH"
       colnames(order_check) <- c(subgroup, "size")
       order_check <- order_check[order(-order_check$size), ]
       order_check$proper_subgroup <- seq_len(nrow(order_check))
+      
       # Vectorized assignment using match
       comb$new_subgroup <- order_check$proper_subgroup[match(comb[[subgroup]], order_check[[subgroup]])]
       comb <- comb[, setdiff(names(comb), subgroup)]
       names(comb)[names(comb) == "new_subgroup"] <- subgroup
     }
+    
+    comb$clone_subgroup_id <- paste0(comb[[clone]],"_",comb[[subgroup]])
+    comb$vj_cell <- ifelse(
+      !is.na(comb$vj_alt_cell),
+      paste(comb$vj_gene, comb$vj_alt_cell, sep = ","),
+      comb$vj_gene
+    )
+    
     comb
   },mc.cores=nproc)
   paired <- dplyr::bind_rows(paired)
@@ -1792,7 +1797,92 @@ sampleCloneMultiGroup = function(clone, size, weight=NULL, group=NULL){
 }
 
 
+#'\code{filterPartialSeqs}
+# Remove partial BCR sequences. Highly recommended before clonal clustering!
+#' @param    data     Data table of sequences (preferably in AIRR format)
+#' @param    seq      name of sequence column for filtering
+#' @param    cutoff   number of matches to the \code{pattern} option required
+#' @param    pattern  regex for matching (defaults to A, T, C, or G)
+#' @param    verbose  print out number of seqs removed
+#' data(ExampleAirr)
+#' filtered = filterPartialSeqs(ExampleAirr)
+#' @export
+filterPartialSeqs = function(data, seq="sequence_alignment", cutoff=250, pattern="[ATCG]",verbose=TRUE){
+  if(!seq %in% names(data)){
+    stop(paste(seq," not a column in data object"))
+  }
+  counts <- stringr::str_count(data[[seq]], pattern)
+  if(verbose){
+    print(paste(sum(counts < cutoff), "partial sequences removed"))
+  }
+  data <- data[counts >= cutoff,]
+  return(data)
+}
 
+#'\code{filterCombs}
+#' Remove sequences likely resulting from oversequencing and PCR error
+#' This removes "comb" structures in trees which are flat polytomies with low duplicate counts
+#' radiating out from a single node with a much higher duplicate count.
+#' Adapted from https://bitbucket.org/kleinstein/projects/src/master/Hoehn2022/isotype_analysis/treesAndSwitches_dowser.R
+#' 
+#' @param    data  AIRR-formatted data table (not a Dowser object from formatClones)
+#' @param    dup_count_thresh  Minimum duplicate count to be considered a 'comb'
+#' @param    exponent determines whether a child sequence is to be cut. Based on duplicate_count
+#'            ratio of child node to parent exponent=1 -> cutting 1/100 (child/parent) at 1 Hamming dist,
+#'        1/1000 at 2 dist, while exponent=2 -> cutting 1/1000 (child/parent) at distance 1.
+#' @param    data data.frame containing the AIRR or Change-O data for a clone. See Details
+#'                for the list of required columns and their default values.
+#' @param    id   name of the column containing sequence identifiers.
+#' @param    seq  name of the column containing observed DNA sequences. All 
+#'                sequences in this column must be multiple aligned.
+#' @param    clone   name of the column containing the identifier for clones.
+#' @param    duplicate name of the column containing the number of duplicates for this sequence.
+#' @param    gap  gap penalty for Hamming distance. gap=0 means gaps ignored.
+#' @details
+#' Formula for cutting a child sequence is:
+#'  child[[duplicate]]/parent[[duplicate]] < 10^(-(exponent + Hamming distance[child, parent]))
+#' @export
+filterCombs = function(data, dup_count_thresh=100, exponent=1, 
+  id="sequence_id", seq="sequence_alignment", clone="clone_id", 
+  duplicate="duplicate_count", gap=0){
+
+  check <- alakazam::checkColumns(data, unique(c(id, seq, clone, duplicate)))
+  if (check != TRUE) { stop(check) }
+
+  ccount <- table(data[[clone]])
+  allbc <- dplyr::tibble()
+  bseqs <- data[data[[duplicate]] >= dup_count_thresh,][[id]]
+  rmseqs <- c()
+  for(sequence in bseqs){
+    temp <- dplyr::filter(data, !!rlang::sym("sequence_id")==sequence)
+    if(nrow(temp) == 0){ #if sequence has already been filtered
+      next;
+    }
+    maxs <- temp[[seq]]
+    # other seqs in clone
+    bc <- dplyr::filter(data, !!rlang::sym("clone_id") == temp[[clone]] & 
+      !!rlang::sym("sequence_id") != seq)
+    if(nrow(bc) == 0){
+      next;
+    }
+    # Get sequences within the same clone that are the same length
+    # as target sequence
+    ls <- unlist(lapply(bc[[seq]], function(x)nchar(x)))
+    bc <- bc[ls==nchar(maxs),]
+    # compare all sequences in clone to target sequence
+    # keep those that are either sufficiently difference
+    # or at a sufficiently high relative duplicate_count
+    bc$maxDist <- unlist(lapply(bc[[seq]], function(x)
+      alakazam::seqDist(x, maxs, dist_mat=alakazam::getDNAMatrix(gap=0))))
+    bc$maxRatio <- bc[[duplicate]]/temp[[duplicate]]
+    bc$cutoff <- 10^(-(exponent + bc$maxDist))
+    cut <- dplyr::filter(bc, !!rlang::sym("maxRatio") < !!rlang::sym("cutoff"))[[id]]
+    rmseqs <- c(rmseqs, cut)
+  }
+  fdata <- data[!data[[id]] %in% rmseqs,]
+  print(paste("Removed",nrow(data) - nrow(fdata),"sequences from data."))
+  return(fdata)
+}
 
 
 

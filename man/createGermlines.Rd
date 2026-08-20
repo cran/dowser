@@ -111,9 +111,11 @@ Return object adds/edits following columns:
 }
 }
 \examples{
+\dontrun{
 vdj_dir <- system.file("extdata", "germlines", "imgt", "human", "vdj", package="dowser")
 imgt <- readIMGT(vdj_dir)
 db <- createGermlines(ExampleAirr[1,], imgt)
+}
 }
 \seealso{
 \link{createGermlines} \link{buildGermline}, \link{stitchVDJ}

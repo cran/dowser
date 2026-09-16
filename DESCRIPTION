@@ -1,7 +1,7 @@
 Package: dowser
 Type: Package
-Version: 2.5.1
-Date: 2026-08-19
+Version: 2.5.2
+Date: 2026-09-15
 Authors@R: c(
     person("Kenneth", "Hoehn", email = "kenneth.b.hoehn@dartmouth.edu", role = c("aut", "cre")),
     person("Cole", "Jensen", email = "cole.jensen@yale.edu", role = "aut"),
@@ -43,7 +43,7 @@ Collate: 'IO.R' 'Data.R' 'Dowser.R' 'Clones.R' 'Classes.R' 'Plotting.R'
         'TimeTreesFunctions.R' 'zzz.R'
 Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2026-08-20 02:48:51 UTC; kenneth
+Packaged: 2026-09-15 18:53:45 UTC; kenneth
 Author: Kenneth Hoehn [aut, cre],
   Cole Jensen [aut],
   Jessie Fielding [aut],
@@ -54,4 +54,4 @@ Author: Kenneth Hoehn [aut, cre],
   Steven Kleinstein [aut, cph]
 Maintainer: Kenneth Hoehn <kenneth.b.hoehn@dartmouth.edu>
 Repository: CRAN
-Date/Publication: 2026-08-20 11:20:10 UTC
+Date/Publication: 2026-09-16 03:20:02 UTC

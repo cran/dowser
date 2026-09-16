@@ -160,10 +160,8 @@ supplied, this will likely result in an error. Specify \code{use_regions=FALSE} 
 using IMGT-gapped sequences
 }
 \examples{
-\dontrun{
 data(ExampleAirr)
 airr_clone <- makeAirrClone(ExampleAirr[ExampleAirr$clone_id=="3184",])
-}
 }
 \seealso{
 Returns an \link{airrClone}. See \link{formatClones} to generate an 

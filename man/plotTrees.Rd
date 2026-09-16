@@ -100,11 +100,9 @@ https://bioconductor.org/packages/devel/bioc/vignettes/ggtree/inst/doc/ggtree.ht
 cite \code{ggtree} in addition to \code{dowser} if you use this function.
 }
 \examples{
-\dontrun{
 data(ExampleClones)
 trees <- getTrees(ExampleClones[10,])
 plotTrees(trees)[[1]]
-}
 }
 \seealso{
 \link{getTrees}, \link{findSwitches}

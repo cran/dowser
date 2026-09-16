@@ -242,11 +242,9 @@ colorTrees <- function(trees, palette, ambig="blend"){
 #'  
 #' @seealso \link{getTrees}, \link{findSwitches}
 #' @examples
-#' \dontrun{
 #' data(ExampleClones)
 #' trees <- getTrees(ExampleClones[10,])
 #' plotTrees(trees)[[1]]
-#' }
 #' @export
 plotTrees <- function(trees, nodes=FALSE, tips=NULL, tipsize=NULL, 
     scale=0.01, palette="Dark2", base=FALSE, show_occupancy=FALSE,

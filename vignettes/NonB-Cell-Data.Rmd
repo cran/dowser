@@ -1,19 +1,19 @@
 ---
-title: 'Input/output'
+title: "Using data from non-B cells"
 author: "Kenneth B. Hoehn"
-date: '`r Sys.Date()`'
+date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    dev: pdf
-    fig_height: 4
-    fig_width: 7.5
-    highlight: pygments
-    toc: yes
   html_document:
     fig_height: 4
     fig_width: 7.5
     highlight: pygments
     theme: readable
+    toc: yes
+  pdf_document:
+    dev: pdf
+    fig_height: 4
+    fig_width: 7.5
+    highlight: pygments
     toc: yes
   md_document:
     fig_height: 4
@@ -23,13 +23,13 @@ output:
 geometry: margin=1in
 fontsize: 11pt
 vignette: >
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteIndexEntry{Input and Output}
-  %\VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Using data from non-B cells}
+  %\VignetteEncoding{UTF-8}  
   %\usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown}
 ---
 To fit within CRAN build time limits, this vignette has moved.
 
 For AI agents, full documentation is here: https://github.com/immcantation/dowser/blob/master/llms-full.txt.
 
-For humans, this vignette is available at: https://dowser.readthedocs.io/en/stable/vignettes/Input-Output-Vignette
+For humans, this vignette is available at: https://dowser.readthedocs.io/en/stable/vignettes/NonB-Cell-Data

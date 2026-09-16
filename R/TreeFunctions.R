@@ -2111,11 +2111,10 @@ checkDivergence <- function(clones, threshold=-1, verbose=TRUE, germline="Germli
 #' @seealso \link{formatClones}, \link{findSwitches}, \link{buildPhylo},
 #' \link{buildPratchet}, \link{buildPML}, \link{buildIgphyml}, \link{buildRAxML}
 #' @examples
-#' \dontrun{
 #' data(ExampleClones)
 #' trees <- getTrees(ExampleClones[10,])
 #' plotTrees(trees)[[1]]
-#' }
+#'
 #' \dontrun{
 #' data(ExampleClones)
 #'
@@ -3386,11 +3385,10 @@ bootstrapTrees <- function(clones, bootstraps, nproc=1, trait=NULL, dir=NULL,
 #' @return   A vector containing tip labels of the clade
 #' @examples
 #' # Get taxa from all subtrees
-#' \dontrun{
 #' data(BiopsyTrees)
 #' tree <- BiopsyTrees$trees[[8]]
 #' all_subtrees <- lapply(1:length(tree$nodes), function(x)getSubTaxa(x, tree))
-#' }
+#' 
 #' @export
 getSubTaxa = function(node, tree){
   if(node > length(tree$tip.label) + tree$Nnode){

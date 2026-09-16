@@ -18,13 +18,11 @@
 #' See https://changeo.readthedocs.io/en/stable/examples/igblast.html for example
 #' of how to download.
 #' @examples
-#' \dontrun{
 #' # vdj_dir contains a minimal example of reference germlines 
 #' # (IGHV3-11*05, IGHD3-10*01 and IGHJ5*02)
 #' # which are the gene assignments for ExampleDb[1,]
 #' vdj_dir <- system.file("extdata", "germlines", "imgt", "human", "vdj", package="dowser")
 #' imgt <- readIMGT(vdj_dir)
-#' }
 #' @export
 readIMGT <- function(dir, quiet=FALSE){
   sequences <- 0
@@ -657,11 +655,9 @@ buildClonalGermline <- function(receptors, references,
 #' }
 #' @seealso \link{createGermlines} \link{buildGermline}, \link{stitchVDJ}
 #' @examples 
-#' \dontrun{
 #' vdj_dir <- system.file("extdata", "germlines", "imgt", "human", "vdj", package="dowser")
 #' imgt <- readIMGT(vdj_dir)
 #' db <- createGermlines(ExampleAirr[1,], imgt)
-#' }
 #' @export
 createGermlines <- function(data, references, locus="locus", trim_lengths=FALSE, force_trim=FALSE,
                             nproc=1, seq="sequence_alignment", v_call="v_call", d_call="d_call", 

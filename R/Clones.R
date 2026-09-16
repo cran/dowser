@@ -98,10 +98,8 @@
 #' @seealso  Returns an \link{airrClone}. See \link{formatClones} to generate an 
 #' ordered list of airrClone objects.
 #' @examples
-#' \dontrun{
 #' data(ExampleAirr)
 #' airr_clone <- makeAirrClone(ExampleAirr[ExampleAirr$clone_id=="3184",])
-#' }
 #' @export
 makeAirrClone <- 
   function(data, id="sequence_id", seq="sequence_alignment", 
@@ -1853,15 +1851,15 @@ filterCombs = function(data, dup_count_thresh=100, exponent=1,
   allbc <- dplyr::tibble()
   bseqs <- data[data[[duplicate]] >= dup_count_thresh,][[id]]
   rmseqs <- c()
-  for(sequence in bseqs){
-    temp <- dplyr::filter(data, !!rlang::sym("sequence_id")==sequence)
+  for(this_seq in bseqs){
+    temp <- dplyr::filter(data, !!rlang::sym("sequence_id")==this_seq)
     if(nrow(temp) == 0){ #if sequence has already been filtered
       next;
     }
     maxs <- temp[[seq]]
     # other seqs in clone
     bc <- dplyr::filter(data, !!rlang::sym("clone_id") == temp[[clone]] & 
-      !!rlang::sym("sequence_id") != seq)
+      !!rlang::sym("sequence_id") != id)
     if(nrow(bc) == 0){
       next;
     }

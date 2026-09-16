@@ -1,6 +1,6 @@
 ---
-title: 'Input/output'
-author: "Kenneth B. Hoehn"
+title: 'Building trees with paired heavy and light chain data'
+author: "Cole G. Jensen"
 date: '`r Sys.Date()`'
 output:
   pdf_document:
@@ -24,12 +24,12 @@ geometry: margin=1in
 fontsize: 11pt
 vignette: >
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteIndexEntry{Input and Output}
-  %\VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Building trees with paired heavy and light chain data}
+  %\VignetteEncoding{UTF-8}  
   %\usepackage[utf8]{inputenc}
 ---
 To fit within CRAN build time limits, this vignette has moved.
 
 For AI agents, full documentation is here: https://github.com/immcantation/dowser/blob/master/llms-full.txt.
 
-For humans, this vignette is available at: https://dowser.readthedocs.io/en/stable/vignettes/Input-Output-Vignette
+For humans, this vignette is available at: https://dowser.readthedocs.io/en/stable/vignettes/Resolve-Light-Chains-Vignette
